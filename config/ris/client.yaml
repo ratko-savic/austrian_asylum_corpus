@@ -1,0 +1,18 @@
+# Settings of the RIS OGD client. The RIS usage rules for bulk retrieval (OGD FAQ of 7 September 2026) are
+# mandatory: at most 0.5 requests per second, no parallel connections, bulk retrieval only 20:00-05:00 Vienna time
+# on working days (all day on weekends and Austrian public holidays), and bulk use announced beforehand to
+# ris.it@bka.gv.at (subject "Ankündigung eines geplanten Massendownloads (OGD):", with purpose, User-Agent,
+# IP address and period). The client enforces the first three; the download refuses to run in bulk until the
+# two fields below are set.
+
+# Pause after every request, in seconds; RIS allows at most one request every 2 seconds.
+min_pause_seconds: 2
+
+# Your e-mail address, sent in the User-Agent header as RIS recommends.
+contact: null
+
+# The date you sent the announcement to ris.it@bka.gv.at (YYYY-MM-DD).
+bulk_announced_on: null
+
+# A run of at most this many decisions is a small test, comparable to manual use of RIS, and needs no announcement.
+small_test_limit: 50

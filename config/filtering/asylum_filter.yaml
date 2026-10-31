@@ -1,0 +1,189 @@
+# Filtering stage (scripts/02_filter.py): which BVwG candidates of the inventory belong to the corpus.
+#
+# Deterministic and from metadata only: every rule reads the RIS metadata of a candidate (norms, decision type,
+# keywords, decision date) and how the inventory found it, never the text. The same inventory and the same rules give
+# the same verdicts, byte for byte.
+#
+# Verdict rules are checked in order: the first match sets verdict and group. The last rule is the default.
+# Flags are checked independently and never change the verdict.
+#
+# Conditions (all keys of `when` must hold; `any_of` holds if one of its keys holds; a rule does not apply if any key
+# of `unless` holds):
+#   decision_type                  Erkenntnis | Beschluss
+#   decision_date_from             ISO date, inclusive
+#   norms                          regular expressions, matched at the start of a RIS norm ("AsylG 2005 §3 Abs1");
+#                                  norms are normalized first ("§ 3" -> "§3", single spaces)
+#   keywords                       regular expressions, searched in the RIS keywords (Schlagworte)
+#   indicators_only                the candidate was found by exactly these inventory indicators
+#   shares_case_number_and_date    true: another candidate has the same first case number and decision date
+#   ris_id_not_matching            regular expression the RIS ID does not match
+#
+# A rule may instead list `alternatives` (each with `name`, `when` and optional `unless`): it holds when one of them
+# holds, and its evidence names that alternative.
+
+# The norms that make international protection a subject of the decision: the AsylG norms of international protection
+# and, since 12 June 2026, the EU regulations that replace them (the Status Regulation on the status only: Art. 1-19;
+# Art. 20 ff. are the content of protection, such as travel documents) and protection-linked family reunification
+# under § 46a NAG.
+included_norms: &included_norms
+  - 'AsylG 2005 §(?:3|4|4a|5|7|8|9|34|35)(?![0-9a-z])'
+  - 'StatusVO \S+ Art(?:[1-9]|1[0-9])(?![0-9])'
+  - 'AsylVfVO'
+  - 'AMMVO'
+  - 'NAG §46a(?![0-9a-z])'
+
+verdict_rules:
+  - id: detention
+    label: Standalone detention (Schubhaft) - excluded matter
+    verdict: exclude
+    when:
+      norms: ['FPG §76(?![0-9a-z])', 'BFA-VG §22a(?![0-9a-z])']
+    reason: >-
+      Detention is the main subject of every decision that lists a detention norm, also where an AsylG norm is listed
+      as well (detention in a Dublin case or after a repeated application).
+
+  - id: other_matter
+    label: Not international protection, although found through a protection norm - excluded matter
+    verdict: exclude
+    alternatives:
+      - name: toleration card under § 68 AVG
+        when:
+          indicators_only: [avg_68_international_protection]
+          norms: ['FPG §46a(?![0-9a-z])']
+        unless:
+          norms: ['AsylG 2005 §']
+        reason: >-
+          A repeated application for a toleration card (Karte für Geduldete), not for protection. With an AsylG norm
+          beside § 46a FPG it is a repeated application for protection and stays in.
+      - name: return only, after a § 75 Abs. 20 AsylG referral
+        when:
+          norms: ['AsylG 2005 §75 Abs ?20(?![0-9])']
+          any_of:
+            norms: ['AsylG 2005 §34(?![0-9a-z])']
+        unless:
+          norms: ['AsylG 2005 §(?:3|4|4a|5|7|8|9|35)(?![0-9a-z])']
+        reason: >-
+          Protection is final; the court decides only on the return decision (or refers it back, quashes it or ends
+          the appeal on it).
+      - name: content of protection only (StatusVO Art. 20 ff.)
+        when:
+          norms: ['StatusVO \S+ Art(?:[2-9][0-9])(?![0-9])']
+        unless:
+          norms: *included_norms
+        reason: >-
+          Travel documents of protection holders (Status Regulation Art. 25 with FPG §§ 88-94), like the travel-document
+          proceedings under the FPG before 12 June 2026, which the corpus does not include.
+
+  - id: subsequent_applications_avg68
+    label: Repeated applications found only via § 68 AVG (kept as a separate group)
+    verdict: include
+    group: subsequent_applications_avg68
+    when:
+      indicators_only: [avg_68_international_protection]
+    reason: Repeated applications for international protection.
+
+  - id: included_norm
+    label: Included norm; mixed decisions included (mixed-case rule)
+    verdict: include
+    group: main
+    when:
+      norms: *included_norms
+    reason: >-
+      International protection is a subject of the decision when RIS indexes an included norm (`included_norms`
+      above). A return decision, §§ 55-57 AsylG or an entry ban listed beside it do not exclude it (flags `mixed:*`).
+      This covers the decisions under the law in force since 12 June 2026 too (StatusVO, AsylVfVO, AMMVO, § 46a NAG).
+      Known limit: an appeal limited to the return part keeps § 3 in the norms and stays in (rare).
+
+  - id: default
+    label: No rule matched
+    verdict: exclude
+    when: {}
+    reason: Expected to match nothing - every candidate was found through an included norm or a separate-group query.
+
+flags:
+  - id: decided_from_2026_06_12
+    label: Decided on or after 12 June 2026, when the EU asylum and migration pact began to apply
+    when:
+      decision_date_from: '2026-06-12'
+    reason: >-
+      A period, not a legal regime: most of these decisions end proceedings begun before that day under the old law.
+      Whether a proceeding runs under the new law is the stage 04 label `new_law`, read from the dates of the
+      application and of the challenged decision.
+
+  - id: interim_procedural
+    label: Interim or ancillary procedural decision (treated separately, not excluded)
+    alternatives:
+      - name: interim norm or keyword in a Beschluss
+        when:
+          decision_type: Beschluss
+          any_of:
+            norms:
+              - 'BFA-VG §17(?![0-9a-z])'            # suspensive effect
+              - 'BFA-VG §18 Abs ?5(?![0-9])'
+              - 'VwGVG §13(?![0-9a-z])'
+              - 'VwGVG §22(?![0-9a-z])'
+              - 'VwGG §30(?![0-9a-z])'
+              - 'AVG (?:1950 )?§62(?![0-9a-z])'     # correction
+              - 'VwGVG §8a(?![0-9a-z])'             # legal aid
+              - 'VwGG §61(?![0-9a-z])'
+              - 'VwGVG §33(?![0-9a-z])'             # reinstatement
+              - 'AVG (?:1950 )?§71(?![0-9a-z])'
+              - 'GebAG'                             # costs
+              - 'VwGG §38(?![0-9a-z])'              # deadline request
+              - 'AVG (?:1950 )?§38(?![0-9a-z])'     # suspension of the proceedings
+              - 'BFA-VG §52(?![0-9a-z])'            # legal adviser
+            keywords: ['aufschiebende Wirkung', 'Berichtigung', 'Verfahrenshilfe', 'Wiedereinsetzung', 'Kosten', 'Gebühr',
+                       'Dolmetsch', 'Fristsetzung']
+        unless:
+          norms: ['VwGVG §28(?![0-9a-z])', 'AVG (?:1950 )?§68(?![0-9a-z])']
+          keywords: ['Kassation', 'Behebung der Entscheidung', 'Verfahrenseinstellung', 'Zurückziehung', 'Einstellung',
+                     'Zurückweisung', 'Verspätung']
+        reason: >-
+          A Beschluss with a signal of a final decision (on the appeal under § 28 VwGVG or § 68 AVG, cassation,
+          discontinuation, rejection) is not interim.
+      - name: suspensive effect in a Beschluss (overrides the final-decision exceptions)
+        when:
+          decision_type: Beschluss
+          norms: ['BFA-VG §17(?![0-9a-z])', 'BFA-VG §18 Abs ?5(?![0-9])']
+        reason: >-
+          Decisions on suspensive effect list § 28 VwGVG (the general basis) or § 68 AVG (the underlying repeated
+          application) among their norms; the exceptions of the first alternative would read that as a final decision.
+      - name: suspensive effect labelled Erkenntnis, without merits norms
+        when:
+          decision_type: Erkenntnis
+          norms: ['BFA-VG §17(?![0-9a-z])', 'BFA-VG §18 Abs ?5(?![0-9])']
+        unless:
+          norms: ['AsylG 2005 §(?:3|8|10|55|57)(?![0-9])']
+        reason: >-
+          From 2018 RIS labels decisions on suspensive effect as Erkenntnis. With merits norms (asylum, subsidiary
+          protection, return decision, residence titles) they cannot be told from judgments on the merits by metadata
+          and are not flagged - a known limit of filtering by metadata.
+    reason: >-
+      Interim and ancillary decisions are treated separately. The court's own interim marker ("Z" in the
+      Ordnungsnummer) is printed in the text only, and it also covers partial final
+      decisions (on the merits, a discontinuation, the rejection of some points), which this flag is not meant to
+      catch. A discontinuation after a withdrawal and a shortened copy of an orally pronounced decision (§ 29 Abs. 5
+      VwGVG) are final decisions, not interim ones.
+
+  - id: mixed:return_decision
+    label: Also decides on a return decision
+    when:
+      norms: ['AsylG 2005 §10(?![0-9a-z])', 'FPG §52(?![0-9a-z])']
+  - id: mixed:humanitarian_residence
+    label: Also decides on §§ 55-57 AsylG
+    when:
+      norms: ['AsylG 2005 §5[5-7](?![0-9a-z])']
+  - id: mixed:entry_ban
+    label: Also decides on an entry ban
+    when:
+      norms: ['FPG §53(?![0-9a-z])']
+
+  - id: possible_duplicate
+    label: Another candidate has the same first case number and decision date (both kept)
+    when:
+      shares_case_number_and_date: true
+
+  - id: data_quality:ris_id
+    label: RIS ID does not follow the usual pattern
+    when:
+      ris_id_not_matching: '^BVWG[TR]_20\d{6}_'

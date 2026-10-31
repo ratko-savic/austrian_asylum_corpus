@@ -1,0 +1,40 @@
+# Outcome units of a BVwG decision (stage 08): which operative parts form one outcome unit, the operative parts that
+# decide the same appellant or appellants.
+#
+# Stage 03 cuts the operative part at every introductory sentence ("... zu Recht erkannt:", "... beschlossen:"). A
+# decision that decides one appellant's appeal partly by judgment and partly by order therefore has two operative parts
+# for the same appellant ("I. zu Recht erkannt: ..." / "II. folgenden Beschluss gefasst: ..."). One appellant's
+# judgment and order form ONE outcome unit: outcome and protection are judged for the appellant, not for the part.
+#
+# Rule (src/asylum_corpus/outcomes/units.py): two consecutive operative parts of one document belong to one unit when
+#   (guard)       the earlier part holds no introductory sentence of its own (`head_inside`): where stage 03 left a
+#                 later appellant's head inside an operative part, the part after it is that appellant's, not the same
+#                 one, and either
+#   continuation  the subject before the later part only continues the introductory sentence: it names no party, no
+#                 challenged decision and no judge or bench (`names_party`), and holds the decision form
+#                 (`form_clause`): "II. folgenden Beschluss gefasst:", "und erkennt zu Recht:", "II. Das
+#                 Bundesverwaltungsgericht erkennt in derselben Sache zu Recht:". The same introductory sentence, so the
+#                 same appellants.
+#   repeated_head the subjects of both parts are full introductory sentences, one part is a judgment and the other an
+#                 order, the dates of the challenged decisions they name are the same (where both name one;
+#                 `challenged_date`), and they name the same appellants: either the document has one person by its
+#                 case numbers and neither head is numbered per appellant ("1.) Das Bundesverwaltungsgericht ...",
+#                 `person_label`) nor lists several persons, or both heads list the same number of persons ("1.) XXXX,
+#                 2.) XXXX", `listed_person`), at least as many as the document's case numbers name. A head repeated
+#                 per appellant with anonymised names ("über die Beschwerde von XXXX, geb. XXXX, StA. Georgien" four
+#                 times) cannot be told apart and is kept apart.
+# Two parts on different challenged decisions stay two units, as do parts whose persons cannot be shown to be the
+# same. The stage report counts the joins by reason (`joined_by`) and the consecutive parts kept apart by reason
+# (`parts_kept_apart`).
+#
+# The unit's dispositions are those of its parts, in order, each with the id of its operative part; its outcome, issues
+# and protection follow from all of them (src/asylum_corpus/outcomes/normalize.py); each part keeps its own outcome in
+# `parts`.
+
+head_inside: '\bDas\s+Bundesverwaltungsgericht\s+(?:hat|erkennt|beschließt|beschliesst|fasst)\b'
+names_party: '(?i)\büber\s+(?:die|den|das)\b|\bgegen\s+(?:den|die|das)\b|\bStA\b|Staatsangeh|\bgeb\.|\bgeboren\b|XXXX|\bdurch\s+(?:den|die)\s+(?:Richter|Vorsitzend)|Einzelrichter|\bSenat\b|\bvertreten\b|\bBescheid|\bAntrag|\bBeschwerde'
+form_clause: '(?i)\b(?:erkannt|erkennt|beschlossen|beschließt|beschliesst|Beschluss|zu\s+Recht)\b'
+challenged_date: '\bBescheid\w*\b[^:;]{0,200}?\bvom\s+(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}|\d{1,2}\.\s?(?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d{4})'
+listed_person: '(?:^|[\s,;(:])\(?(\d{1,2})\s?(?:\.\)|\)|\.)\s*(?:(?:des|der|dem|den|die|von)\s+)?(?:(?:mj\.?|minderj\w*|mdj\.?|mündig\w*|unmündig\w*)\s+)?(?:Herrn\s+|Frau\s+)?(?:XXXX|[A-ZÄÖÜ]x{3,}\b)'
+person_label: '(?:^|\s)\(?\d{1,2}\s?(?:\.\)|\)|\.)\s*(?:[A-Z]\)\s*)?(?:[IVX]+\.\s*)?Das\s+Bundesverwaltungsgericht\b'
+forms: [judgment, order]

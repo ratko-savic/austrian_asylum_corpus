@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fine_sections.schema.json",
+  "title": "Document with fine sections",
+  "description": "One RIS decision as in sections.schema.json, plus its fine sections: the operative part divided at its labels (A / B, numbered points), and below the coarse sections every heading of the court in the reasoning as a section at any depth (parts, parts on numbered points, with topics). Quoted material stays unsegmented. Citations are a separate derived object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "ris_id",
+    "court",
+    "ecli",
+    "case_number",
+    "case_numbers",
+    "document_numbers",
+    "decision_date",
+    "pronouncement_date",
+    "decision_type",
+    "source_url",
+    "ris_metadata",
+    "full_text",
+    "sections",
+    "paragraphs",
+    "structure"
+  ],
+  "properties": {
+    "document_id": {
+      "description": "ris:<court>:<ris_id>, court in lower case.",
+      "type": "string",
+      "pattern": "^ris:(bvwg|vwgh|vfgh):[A-Z0-9_]+$"
+    },
+    "ris_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$"
+    },
+    "court": {
+      "enum": [
+        "BVwG",
+        "VwGH",
+        "VfGH"
+      ]
+    },
+    "ecli": {
+      "description": "ECLI as given by RIS. Never derived from the RIS ID (the suffixes can differ).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^ECLI:AT:[A-Z]+:[0-9]{4}:.+$"
+    },
+    "case_number": {
+      "description": "First case number (Geschaeftszahl) in the RIS metadata.",
+      "type": "string"
+    },
+    "case_numbers": {
+      "description": "All case numbers the decision covers: the RIS metadata plus joined case numbers printed at the head of the decision. The first item equals case_number.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "document_numbers": {
+      "description": "Case numbers with the document suffix as printed at the head of the decision (BVwG: 'L519 2309863-1/7E'). Distinguishes decisions that share a case number. Empty if the decision prints none.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "decision_date": {
+      "description": "RIS Entscheidungsdatum. For orally pronounced decisions this is the date of the written copy.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "pronouncement_date": {
+      "description": "Date of oral pronouncement ('mündlich verkündet') stated at the head of the decision, else null.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "decision_type": {
+      "description": "RIS Entscheidungsart normalised: Erkenntnis -> judgment, Beschluss -> order. The raw value stays in ris_metadata.",
+      "enum": [
+        "judgment",
+        "order"
+      ]
+    },
+    "source_url": {
+      "description": "Public RIS document link.",
+      "type": "string",
+      "pattern": "^https://www\\.ris\\.bka\\.gv\\.at/Dokument\\.wxe\\?Abfrage=(Bvwg|Vwgh|Vfgh)&Dokumentnummer=[A-Z0-9_]+$"
+    },
+    "ris_metadata": {
+      "description": "The RIS OGD API record Data.Metadaten, verbatim.",
+      "type": "object",
+      "required": [
+        "Technisch",
+        "Allgemein",
+        "Judikatur"
+      ]
+    },
+    "full_text": {
+      "description": "Deterministic text of the decision, built from the RIS XML (not the HTML). (1) Units: one paragraph per RIS paragraph element (<absatz>), list item (<listelem>: its symbol, a space, the text) and list closing paragraph (<schluss>, <schlussteil>), and one per table row (see paragraph). (2) Left out: page headers and footers, the RIS header fields (Gericht, Entscheidungsdatum, Geschäftszahl, ECLI), the RIS field labels, the editorial VfGH Leitsatz (kept in ris_metadata) and images. (3) Inline elements: <gdash/> -> '-'; <tab/>, <br/>, <nbsp/>, <em14/> -> space; <amp/>, <lt/>, <gt/> -> '&', '<', '>'. (4) Characters: U+00A0 -> space; U+00AD removed; Word symbol-font bullets U+F0B7 and U+F095 -> '•', U+F02D -> '-'; every other character unchanged. (5) Whitespace runs -> one space; each paragraph trimmed. (6) Paragraphs joined by a single '\\n'. (7) Footnotes (<fnen>/<fntext>): one paragraph per footnote, after all other paragraphs, in a section of type other with source_label 'Fußnoten'; the reference marks carry no text.",
+      "type": "string"
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/section"
+      }
+    },
+    "paragraphs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/paragraph"
+      }
+    },
+    "structure": {
+      "description": "How the reasoning is divided by the heading rules (config/segmentation/bvwg_headings.yaml) and the hierarchy rules (src/asylum_corpus/segmentation/subsections.py). status: the structure template the recognised headings form, tested in this order: abridged, no_reasoning, none, merits, merits_incomplete, short, ab_only. merits (findings, assessment of evidence and legal assessment, in this order), merits_incomplete (one or two of them, or all three out of order), short (no findings / evidence / legal assessment, but procedural history and/or 'erwogen'), ab_only (only 'Zu A)' / 'Zu B)'), none (a reasoning without any recognised heading), abridged (an abridged written decision, gekürzte Ausfertigung: a reasoning of at most 3,000 characters with the standard note of § 29 Abs. 5 VwGVG), no_reasoning (no reasoning section, one shorter than 500 characters, or one that only repeats head and operative part). Combined headings count as both their parts; procedural_history_and_findings counts as findings only where the decision has an assessment of evidence or legal assessment section. The template describes the document as printed, not the kind of decision.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "hierarchy_rules_applied"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "merits",
+            "merits_incomplete",
+            "short",
+            "ab_only",
+            "none",
+            "abridged",
+            "no_reasoning"
+          ]
+        },
+        "hierarchy_rules_applied": {
+          "description": "The hierarchy rules that changed the result for this document, in alphabetical order (src/asylum_corpus/segmentation/subsections.py; parents and extent always apply, fallback and erwogen_as_legal are not listed): zu_a_before_history 'Zu A)' before the procedural history dropped; inside_history headings before an 'erwogen' heading (from the start of the reasoning or a procedural history heading) dropped; own_part_in_history a heading with the label of the first procedural history heading kept as the court's own part; erwogen_after_legal an 'erwogen' heading right after a legal assessment heading dropped (its opening sentence); subtitle a heading right after a heading of the same type dropped (its subtitle); sub_point a repeated type with a deeper label dropped as a sub-point; zu_a_encloses 'Zu A)' enclosing findings / evidence / legal assessment; point_of_evidence a findings heading inside the assessment of evidence dropped (its point); out_of_order findings / evidence / legal assessment out of order.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "zu_a_before_history",
+              "inside_history",
+              "own_part_in_history",
+              "erwogen_after_legal",
+              "subtitle",
+              "sub_point",
+              "zu_a_encloses",
+              "point_of_evidence",
+              "out_of_order"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "offset": {
+      "description": "Character offset into full_text (start inclusive, end exclusive).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "section": {
+      "description": "A contiguous run of paragraphs. Level 1: the sections from the RIS fields, with the type and span they have in document.schema.json (they partition full_text; types may repeat); the IDs of the coarse sections are numbered anew in document order, those of the fine sections follow them. Level 2 and deeper: subsections of a reasoning section, each starting with its heading paragraph and ending before the next heading of the same or a higher level (or at the end of its parent). Sections are listed in document order (by start, then level). Fine sections: below the coarse sections, further sections at any depth (detection label_structure or revision_sentence in the operative part, heading_like in the reasoning and the level-1 sections of type other); a section with the same start as its parent is allowed (a label and its sub-label printed in one line, 'A) I. Die Beschwerde …').",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source_label",
+        "start",
+        "end",
+        "parent_id",
+        "level",
+        "detection",
+        "rule",
+        "heading_paragraph_id",
+        "decision_form",
+        "label",
+        "title",
+        "point",
+        "numbering",
+        "topic",
+        "nesting"
+      ],
+      "properties": {
+        "id": {
+          "description": "<document_id>#s:<01>",
+          "type": "string",
+          "pattern": "#s:[0-9]{2,}$"
+        },
+        "type": {
+          "description": "Level 1 (RIS fields): subject, operative_part, reasoning, other - as in document.schema.json. Subsections of the reasoning (from printed headings): procedural_history (Verfahrensgang); procedural_history_and_findings (a procedural history heading that names the facts too, 'Verfahrensgang und Sachverhalt'; counts as findings for the templates only where the decision has an assessment of evidence or legal assessment section); considerations ('Das Bundesverwaltungsgericht hat erwogen'); findings (Feststellungen, Sachverhalt); evidence_assessment (Beweiswürdigung, or where there is no such heading the sentence that opens it); legal_assessment (Rechtliche Beurteilung; in a decision without such a heading, also an 'erwogen' heading that follows the court's findings or assessment of evidence and is followed by neither); findings_and_evidence ('Feststellungen und Beweiswürdigung'); legal_and_evidence ('Rechtliche Beurteilung und Beweiswürdigung'); ruling_a ('Zu A)': the reasoning on operative part A); revision_admissibility ('Zu B)': whether an appeal to the VwGH is admissible). Fine sections (config/segmentation/bvwg_parts.yaml): operative_part_a / operative_part_b (Spruchteil 'A)' / 'B)' of an operative part; with 'A)', 'B)' and 'C)' the letter on the revision is operative_part_b, the others operative_part_a; a part whose text is the ruling on the revision is operative_part_b); operative_point (any other labelled point of an operative part, 'I.', 'II.', '1.'); point_assessment (a part of the reasoning whose title names numbered points, '3.2. Zu Spruchpunkt I. des angefochtenen Bescheides'); part (any other heading of the court below the coarse sections: labelled headings, the unlabelled forms 'Zu …', 'Ad …', 'Auszug aus …', and a label alone before its text). No parts in the procedural history except a labelled heading continuing its number.",
+          "enum": [
+            "subject",
+            "operative_part",
+            "reasoning",
+            "other",
+            "procedural_history",
+            "procedural_history_and_findings",
+            "considerations",
+            "findings",
+            "evidence_assessment",
+            "legal_assessment",
+            "findings_and_evidence",
+            "legal_and_evidence",
+            "ruling_a",
+            "revision_admissibility",
+            "operative_part_a",
+            "operative_part_b",
+            "operative_point",
+            "point_assessment",
+            "part"
+          ]
+        },
+        "source_label": {
+          "description": "The label of the RIS field the section comes from (Betreff, Spruch, Begründung, Text, ...), else its field code; 'Fußnoten' for the footnotes.",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/offset"
+        },
+        "end": {
+          "$ref": "#/$defs/offset"
+        },
+        "parent_id": {
+          "description": "The enclosing section; null for level 1.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "#s:[0-9]{2,}$"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1 for the RIS-field sections; a section's level is its parent's plus one. Coarse sections reach level 5; fine sections can be deeper."
+        },
+        "detection": {
+          "description": "xml_field: from the RIS field (level 1). heading_rule: from a heading printed in the text, recognised by a rule of config/segmentation/bvwg_headings.yaml. label_structure: a labelled paragraph of an operative part (fine). heading_like: a heading of the court below the coarse sections (fine). revision_sentence: the sentence on the revision of an operative part without labels, taken as operative_part_b (fine).",
+          "enum": [
+            "xml_field",
+            "heading_rule",
+            "label_structure",
+            "heading_like",
+            "revision_sentence"
+          ]
+        },
+        "rule": {
+          "description": "ID of the heading rule; null for xml_field and fine sections.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "heading_paragraph_id": {
+          "description": "The paragraph holding the heading (the first paragraph of the subsection); null for xml_field sections.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "#p:[0-9]{4,}$"
+        },
+        "decision_form": {
+          "description": "operative_part sections: the form of this part of the decision as its introductory sentence states it ('zu Recht erkannt:', 'zu Recht:', 'erkannt:' -> judgment; 'beschlossen:', 'den Beschluss gefasst:' -> order; 'zu Recht erkannt und beschlossen:' -> judgment_and_order); null without such a sentence and for all other sections. Recorded as printed: the document's decision_type stays as RIS states it. The two differ in about 0.8 % of the documents, with errors on both sides; the legally correct form is an interpretation and belongs to the outcome annotation.",
+          "enum": [
+            "judgment",
+            "order",
+            "judgment_and_order",
+            null
+          ]
+        },
+        "label": {
+          "description": "Fine sections: the printed outline label, normalised ('II.1.', 'A)', 'a)'); null without a label and for coarse sections.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "Fine heading_like sections: the heading's text after the label; label_structure sections: the text after the label in the paragraph; null for coarse sections.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "point": {
+          "description": "operative_point and point_assessment: the points named ('I', 'II', or the label of an operative point; a part on several points records them all, 'I-III', 'I, IV'); null otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numbering": {
+          "description": "point_assessment: whose numbering the point is - authority (the challenged decision's 'Spruchpunkt I.'), court (the court's own 'Spruchteil A) I.', also where the title names both the court's point and the challenged decision's), unclear; null otherwise.",
+          "enum": [
+            "authority",
+            "court",
+            "unclear",
+            null
+          ]
+        },
+        "topic": {
+          "description": "part and point_assessment: the topic of the heading by the topic rules of groups court and any in config/segmentation/bvwg_parts.yaml, null if none matches or below a part on the country situation; a point_assessment's topic is its issue; null for other sections.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nesting": {
+          "description": "Fine sections: how the section was placed by its label - child, sibling, restart, unlabelled, unmatched, continues_section; beside_section (a main heading the heading rules missed, placed beside the coarse section whose number it continues, which then ends before it - see coarse_end); null for coarse sections.",
+          "enum": [
+            "child",
+            "sibling",
+            "restart",
+            "unlabelled",
+            "unmatched",
+            "continues_section",
+            "beside_section",
+            null
+          ]
+        },
+        "coarse_end": {
+          "description": "Coarse sections only: the section's end as the heading rules found it, where it ends earlier among the fine sections - before a main heading of the court that the heading rules missed and that the fine sections place beside it (nesting beside_section). Absent otherwise; the documents with coarse sections are unchanged.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "paragraph": {
+      "description": "One RIS paragraph element (<absatz>), list item (<listelem>) or list closing paragraph (<schluss>, <schlussteil>) whose text is not empty after normalisation (see full_text). A leading structural margin number is moved to marginal_number. Tables: one paragraph per row; each cell's paragraph elements are joined by a space, the cells are joined in column order by ' | ', empty cells are kept so the columns stay aligned, and rows whose cells are all empty are dropped; a table nested in a cell is part of that cell's text (only the rows of the outer table are paragraphs). full_text[start:end] == text.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "section_id",
+        "marginal_number",
+        "start",
+        "end",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "description": "<document_id>#p:<0001>",
+          "type": "string",
+          "pattern": "#p:[0-9]{4,}$"
+        },
+        "section_id": {
+          "description": "The deepest coarse section containing the paragraph, as in sections.schema.json; where a coarse section ends early before a main heading that went beside it (beside_section), its later paragraphs point to the section's parent. Fine sections are found by the offsets.",
+          "type": "string",
+          "pattern": "#s:[0-9]{2,}$"
+        },
+        "marginal_number": {
+          "description": "Margin number (Randzahl) that the RIS XML marks structurally (a number followed by a tab at the start of the paragraph, used by the VwGH); removed from text. Outline labels such as '1.1.', 'II.' or 'a)' stay in the text.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]+$"
+        },
+        "start": {
+          "$ref": "#/$defs/offset"
+        },
+        "end": {
+          "$ref": "#/$defs/offset"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

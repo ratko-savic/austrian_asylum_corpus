@@ -1,0 +1,164 @@
+# Issues of a BVwG disposition (stage 08).
+#
+# A dispositive sentence concerns the issues named by
+#   norms      the provisions cited in it, normalized by the stage 06 extractor (config/citations/acts.yaml; a
+#              provision cited by an EU act number, "Verordnung (EU) 2024/1347 Art. 13", matches no pattern); each
+#              citation gives the first issue whose pattern matches (act-specific: AsylG 2005 § 3 is asylum, AsylG 1997
+#              § 7 too). "AsylG" without a year is mapped where a pattern takes it ("AsylG(?: 2005)?": § 3, § 4, § 4a,
+#              § 5, § 8, § 9, §§ 54-58, § 68); § 7 and § 10 differ (asylum / revocation, family / return decision) and
+#              are not mapped (`ambiguous_norms`); the wording may still name the issue
+#   wording    phrases in the lower-case sentence; every matching issue is added
+#   replaces   when this issue is found, these are removed (revocation of asylum is not asylum)
+#   wording_unless  the wording is not read in a sentence that matches this
+# Without any of these, a sentence about the appeal as a whole has the issue whole_decision (bvwg_dispositions.yaml),
+# and one naming a numbered point of the authority's decision ("Spruchpunkt III.") the point; the point is looked up
+# in the reasoning (`points`).
+#
+#   kind       substantive - the appeal on the merits or on admissibility; procedural - an outcome of its own only
+#              when nothing else is decided (`subtype` of "other": interim / procedural)
+#   gives      the protection status a favourable disposition (`by`) on this issue gives the appellant; `remand`: a
+#              remand of this issue makes the protection outcome "remanded"
+#   point_wording  more phrases used only to resolve a numbered point in the reasoning, not in the operative part: the
+#              history describes the authority's points in its own words ("Status der/des Asylberechtigten", "Antrag
+#              ... gemäß § 3 Abs. 1 AsylG 2005 abgewiesen (Spruchpunkt I.)")
+#
+# The law in force from 12 June 2026 (StatusVO, Regulation (EU) 2024/1347): Art. 13 grants refugee status, Art. 14
+# revokes it, Art. 18 grants subsidiary protection, Art. 19 revokes it, Art. 24 is the residence permit of either
+# status (not a residence title of §§ 54-58 AsylG 2005).
+
+issues:
+  - id: subsidiary_extension
+    kind: substantive
+    norms: ['^AsylG(?: 2005)? § 8 Abs\. 4\b']
+    wording: ['verlängerung der befristeten aufenthaltsberechtigung']
+    point_wording: ['§ ?8 abs\.? ?4 asylg']
+    gives: {status: subsidiary_protection, by: [granted, upheld, annulled], remand: true}
+  - id: asylum
+    kind: substantive
+    norms: ['^AsylG(?: 2005)? § 3\b', '^AsylG 1997 § 7\b', '^StatusVO Art\. 13\b']
+    wording: ['status de[sr] asylberechtigten', '\basyl (?:zu )?gewährt', 'flüchtlingseigenschaft']
+    point_wording: ['status\W+(?:\w+\W+){0,2}asylberechtigt', '§ ?3 (?:abs\.? ?1 )?(?:ivm [^()]{0,40})?asylg']
+    gives: {status: asylum, by: [granted, upheld], remand: true}
+  - id: subsidiary_protection
+    kind: substantive
+    norms: ['^AsylG(?: 2005| 1997)? § 8\b', '^StatusVO Art\. 18\b']
+    # also the new law's "Status subsidiären Schutzes"
+    wording: ['status de[sr] subsidiär schutzberechtigten', 'status (?:des )?subsidiären schutzes']
+    point_wording: ['status\W+(?:\w+\W+){0,2}subsidiär schutzberechtigt', 'subsidiär schutzberechtigt', '§ ?8 abs\.? ?1 (?:z ?\d )?(?:ivm [^()]{0,40})?asylg']
+    gives: {status: subsidiary_protection, by: [granted, upheld], remand: true}
+  - id: revocation_asylum
+    kind: substantive
+    norms: ['^AsylG 2005 § 7\b', '^StatusVO Art\. 14\b']
+    wording: ['aberkenn[^.]{0,80}status de[sr] asylberechtigten', 'status de[sr] asylberechtigten[^.]{0,80}aberkannt']
+    point_wording: ['aberkenn[^.()]{0,80}asylberechtigt', 'asylberechtigt[^.()]{0,80}aberkannt', '§ ?7 abs\.? ?1 (?:z ?\d )?asylg']
+    replaces: [asylum]
+    gives: {status: asylum, by: [upheld, annulled], remand: true}
+  - id: revocation_subsidiary
+    kind: substantive
+    norms: ['^AsylG(?: 2005)? § 9\b', '^StatusVO Art\. 19\b']
+    # also the new law's "Status subsidiären Schutzes ... entzogen"
+    wording: ['aberkenn[^.]{0,80}subsidiär', 'subsidiär[^.]{0,80}aberkannt', 'subsidiären schutzes[^.]{0,80}entzogen']
+    point_wording: ['aberkenn[^.()]{0,80}subsidiär', 'subsidiär[^.()]{0,80}aberkannt', '§ ?9 abs\.? ?[12] (?:z ?\d )?asylg']
+    replaces: [subsidiary_protection]
+    gives: {status: subsidiary_protection, by: [upheld, annulled], remand: true}
+  - id: residence_title
+    kind: substantive
+    norms: ['^AsylG(?: 2005)? § 5[4-8]\b']
+    wording: ['aufenthaltstitel', 'aufenthaltsberechtigung (?:besonderer|plus|gemäß § 5[4-8])']
+    # not the permit of a status under Art. 24 StatusVO
+    wording_unless: 'statusvo'
+    point_wording: ['aufenthaltsberechtigung besonderer schutz', 'berücksichtigungswürdigen gründen', '§ ?5[4-8] (?:abs\.? ?\d )?asylg']
+    gives: {status: residence_right, by: [granted, upheld]}
+  - id: return_decision
+    kind: substantive
+    norms: ['^AsylG(?: 2005)? § 10\b', '^BFA-VG § 9\b', '^FPG § 52(?! Abs\. 9)\b']
+    wording: ['rückkehrentscheidung', 'ausweisung']
+    point_wording: ['§ ?10 (?:abs\.? ?1 (?:z\.? ?\d )?)?asylg', '§ ?52 abs\.? ?[1-8] (?:z ?\d )?fpg', 'ausgewiesen', '§ ?8 abs\.? ?2 asylg 1997']
+    gives: {status: residence_right, by: [permanent]}
+  - id: deportation
+    kind: substantive
+    norms: ['^FPG § 52 Abs\. 9\b', '^FPG § 46\b', '^FPG § 50\b']
+    # also "die Abschiebung gemäß § 46 FPG nach Iran", "Zulässigkeit der Abschiebung"
+    wording: ['abschiebung in', 'abschiebung nach', 'zurückweisung, zurückschiebung oder abschiebung', 'abschiebung gemäß § ?46 fpg', 'zulässigkeit (?:der|seiner|ihrer) abschiebung']
+    point_wording: ['abschiebung\b[^.()]{0,100}?(?:zulässig|unzulässig)', '§ ?52 abs\.? ?9 fpg', '§ ?46a? fpg', 'geduldet']
+  - id: departure_deadline
+    kind: substantive
+    norms: ['^FPG § 55\b']
+    # also "Frist zur freiwilligen Ausreise"; in the reasoning, "... ab Rechtskraft der Rückkehrentscheidung" ends the
+    # description of the departure deadline (the longer phrase wins over "Rückkehrentscheidung" alone)
+    wording: ['frist für die freiwillige ausreise', 'ausreisefrist', 'frist zur freiwilligen ausreise']
+    point_wording: ['freiwillige(?:n)? ausreise', '(?:ab|nach) (?:eintritt der )?(?:rechtskraft|durchsetzbarkeit) der rückkehrentscheidung', '§ ?55 (?:abs\.? ?\d[a]?(?: bis \d)? )?fpg']
+  - id: entry_ban
+    kind: substantive
+    norms: ['^FPG § 53\b']
+    wording: ['einreiseverbot']
+    point_wording: ['§ ?53 (?:abs\.? ?\d )?(?:ivm [^()]{0,40})?fpg']
+  - id: admissibility
+    kind: substantive
+    norms: ['^AsylG(?: 2005)? § (?:4a?|5)\b', '^FPG § 61\b', '^Dublin III-VO', '^AsylG(?: 2005)? § 68\b']
+    # not "Unzuständigkeit (der Behörde)", an annulment for the authority's lack of jurisdiction
+    wording: ['außerlandesbringung', 'zulassungsverfahren', '(?<!un)zuständigkeit', 'sicheren drittstaat']
+  - id: res_judicata
+    kind: substantive
+    norms: ['^AVG § 68\b']
+    wording: ['entschiedener sache', 'entschiedene sache']
+  - id: remaining_points
+    kind: substantive
+    norms: []
+    wording: ['übrigen spruchpunkte', 'restlichen spruchpunkte']
+    # a dispositive sentence without an issue or point that begins "Im Übrigen" concerns the remaining points, not the
+    # whole decision (`remaining` below). A remand of the remaining points remands what the decision has not decided
+    # otherwise (the protection issues among them), as a remand of the whole decision does.
+    gives: {status: null, by: [], remand: true}
+  - id: suspensive_effect
+    kind: procedural
+    subtype: interim
+    # not § 16 BFA-VG: its Abs. 1 is the time limit for the appeal ("Die Beschwerde wird gemäß § 16 Abs. 1 BFA-VG als
+    # verspätet zurückgewiesen" is no decision on suspensive effect); the operative sentences that cite § 16 on
+    # suspensive effect name it ("aufschiebende Wirkung", wording below)
+    norms: ['^BFA-VG § 1[78]\b', '^VwGVG § 13\b', '^VwGVG § 22\b']
+    wording: ['aufschiebende(?:n)? wirkung']
+  - id: restitution
+    kind: procedural
+    subtype: procedural
+    norms: ['^VwGVG § 33\b', '^AVG § 71\b']
+    wording: ['wiedereinsetzung']
+  - id: reopening
+    kind: procedural
+    subtype: procedural
+    norms: ['^VwGVG § 32\b', '^AVG § 69\b']
+    # also "... wiederaufzunehmen, wird zurückgewiesen" (the reopening wording may stand in the head before the
+    # operative part)
+    wording: ['wiederaufnahme', 'wiederaufzunehmen']
+  - id: legal_aid
+    kind: procedural
+    subtype: procedural
+    norms: ['^VwGVG § 8a\b']
+    wording: ['verfahrenshilfe', 'verfahrenshelfer']
+
+# whole_decision: a remand of the whole decision includes its protection issues
+whole_decision: {gives: {status: null, by: [], remand: true}}
+
+# A dispositive sentence without an issue or point that begins "Im Übrigen" ("Im Übrigen wird die Beschwerde als
+# unbegründet abgewiesen") concerns the remaining points (remaining_points), not the whole decision.
+remaining: '^\W*(?:[a-z]\)\s*)?(?:[ivx]+\.\)?\s*|\d+\.\)?\s*)?im übrigen\b'
+
+ambiguous_norms: '^AsylG § (?:7|10)\b'
+
+# A numbered point of the authority's decision is the issue named (wording) within `window` characters before the
+# point's first mention in the reasoning, where the procedural history describes the authority's decision:
+#   - a range with a hyphen or dash is expanded like "bis" ("Spruchpunkte I-VI.", "I.-V.", "III. - VI.")
+#   - the window starts after the point mentioned before it in the reasoning, if that is nearer: the description of a
+#     point lies between the mention of the point before it and its own
+#   - of the phrases ending last, the longest wins: "... ab Rechtskraft der Rückkehrentscheidung" is the departure
+#     deadline, not the return decision
+#   - the issues' point_wording is read too ("Status der/des Asylberechtigten", "Antrag ... gemäß § 3 Abs. 1 AsylG 2005
+#     abgewiesen")
+#   - where the mention introduces the description ("Mit Spruchpunkt IV. wurde ein Einreiseverbot erlassen", "Unter
+#     Spruchpunkt II. wurde ...", "Zu Spruchpunkt IV.:"; `described_after`), the window runs from the mention to the
+#     next point mentioned (at most `window`) and the phrase beginning first wins
+points:
+  mention: 'spruchpunkt(?:e|en|es|s)?\s+([ivx]+)\b'   # also "Spruchpunktes III."
+  reference: 'spruchpunkt(?:e|en|es|s)?\s+((?:[ivxl]+\.?(?:\s?(?:,|und|bis|-|–)\s?)?)+)'   # "l.": a misprinted "I."
+  window: 250
+  described_after: '\b(?:mit|unter|in|im|zu)\s+(?:de[mn]\s+)?$'

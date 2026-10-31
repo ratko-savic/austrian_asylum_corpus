@@ -1,0 +1,45 @@
+# The agent corpus: BVwG decisions in which the facts, the court's legal assessment, the outcome and the cited norms
+# can be told apart most reliably. The criteria are applied in this order, and later ones assume the earlier ones (a
+# clear outcome is read for one outcome unit); the report counts what each one removes.
+
+criteria:
+  - id: main_group
+    reason: protection proceedings of the main group (follow-up applications under § 68 AVG are another procedure)
+  - id: not_interim
+    reason: decisions that end the appeal, not interim or procedural orders
+  - id: old_law
+    reason: proceedings begun before 12 June 2026, under the law the norms of the corpus describe
+  - id: merits_structure
+    reason: the court prints its findings and its legal assessment under headings of their own (template merits)
+  - id: one_appellant
+    reason: one outcome unit, so that one outcome and one set of norms hold for every appellant it names
+  - id: clear_outcome
+    reason: a decision on the appeal, read without a warning
+  - id: protection_application
+    reason: an application for protection, not a revocation, an extension, a restitution or a reopening, whose outcome
+      means something else
+  - id: norms_in_legal_assessment
+    reason: the legal assessment cites at least one Austrian provision
+
+# clear_outcome: the outcomes kept
+clear_outcomes: [upheld, partially_upheld, dismissed, rejected, remanded]
+# protection_application: the issues of the other proceedings
+other_proceedings: [revocation_asylum, revocation_subsidiary, subsidiary_extension, restitution, reopening]
+# the legal part: the facts end where it starts, and its citations are the norms
+legal_sections: [legal_assessment]
+# the citation types counted as norms
+norm_types: [national_legislation]
+
+# The texts name the judge and the representatives of the head by their role ("[judge]", "[lawyer]", ...). The parts
+# masked_parts, the inputs of a prediction task, are given once more with the citations of masked_types (the norms
+# and law-gazette numbers) as "[NORM]", so that the inputs do not give away the norms.
+masked_parts: [procedural_history, findings]
+masked_types: [national_legislation, eu_legislation, echr_provision, international_treaty, publication_reference]
+
+# The split by decision date: train before dev_from, dev before test_from, test from then on (law and country
+# situations change over time, so a random split would leak later information into training). A dev or test decision
+# whose procedure (the 7-digit stem of one of its case numbers) has a decision in an earlier split goes to
+# seen_procedure, so that train, dev and test share no procedure.
+split:
+  dev_from: '2024-01-01'
+  test_from: '2025-07-01'

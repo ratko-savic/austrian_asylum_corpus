@@ -1,0 +1,479 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "outcome.schema.json",
+  "title": "Outcome (normalized_outcome annotation)",
+  "description": "The outcome of one outcome unit (the operative parts that decide the same appellant or appellants) of a BVwG decision: an annotation (annotation.schema.json) of type normalized_outcome whose value is defined here. Rule-based: units by config/outcomes/bvwg_units.yaml, dispositions and issues by config/outcomes/bvwg_dispositions.yaml and bvwg_issues.yaml; the exact operative part stays in the document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "annotation_id",
+    "document_id",
+    "type",
+    "value",
+    "evidence",
+    "method"
+  ],
+  "properties": {
+    "annotation_id": {
+      "description": "<document_id>#out:<01>, numbered by outcome unit.",
+      "type": "string",
+      "pattern": "#out:[0-9]{2,}$"
+    },
+    "document_id": {
+      "type": "string",
+      "pattern": "^ris:bvwg:[A-Z0-9_]+$"
+    },
+    "type": {
+      "const": "normalized_outcome"
+    },
+    "method": {
+      "const": "rule_based"
+    },
+    "evidence": {
+      "description": "Spans in full_text: the dispositive sentences (role disposition) and the passages of the reasoning that resolved a numbered point (role point).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end",
+          "role"
+        ],
+        "properties": {
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "role": {
+            "enum": [
+              "disposition",
+              "point"
+            ]
+          }
+        }
+      }
+    },
+    "value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "court",
+        "operative_part_id",
+        "operative_part_ids",
+        "operative_part",
+        "operative_parts",
+        "decision_form",
+        "outcome",
+        "outcome_subtype",
+        "protection",
+        "issues",
+        "dispositions",
+        "parts",
+        "revision",
+        "problems"
+      ],
+      "properties": {
+        "court": {
+          "const": "BVwG"
+        },
+        "operative_part_id": {
+          "type": "string",
+          "pattern": "#s:[0-9]{2,}$",
+          "description": "The first operative part of the unit (stage 03 section id)."
+        },
+        "operative_part_ids": {
+          "description": "The operative parts of the unit, in order.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "#s:[0-9]{2,}$"
+          }
+        },
+        "operative_part": {
+          "description": "Number of this outcome unit in the decision (1 …).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "operative_parts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of outcome units in the decision."
+        },
+        "decision_form": {
+          "description": "As the introductory sentence states it; judgment_and_order also for a unit of a judgment part and an order part.",
+          "enum": [
+            "judgment",
+            "order",
+            "judgment_and_order",
+            null
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "upheld",
+            "partially_upheld",
+            "dismissed",
+            "rejected",
+            "remanded",
+            "other"
+          ],
+          "description": "Of the unit: from the dispositions of all its operative parts."
+        },
+        "outcome_subtype": {
+          "description": "Only for outcome other: discontinued, interim, procedural, unrecognized.",
+          "enum": [
+            null,
+            "discontinued",
+            "interim",
+            "procedural",
+            "unrecognized"
+          ]
+        },
+        "protection": {
+          "description": "The strongest protection status the appellants of the unit obtain from this decision (asylum > subsidiary_protection > residence_right); else remanded where a protection issue, the remaining points or the whole decision is remanded; none; not_decided where the outcome is other.",
+          "enum": [
+            "asylum",
+            "subsidiary_protection",
+            "residence_right",
+            "remanded",
+            "none",
+            "not_decided"
+          ]
+        },
+        "issues": {
+          "description": "Per issue: the dispositions on it and how it was found.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "issue",
+              "dispositions",
+              "via"
+            ],
+            "properties": {
+              "issue": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "subsidiary_extension",
+                      "asylum",
+                      "subsidiary_protection",
+                      "revocation_asylum",
+                      "revocation_subsidiary",
+                      "residence_title",
+                      "return_decision",
+                      "deportation",
+                      "departure_deadline",
+                      "entry_ban",
+                      "admissibility",
+                      "res_judicata",
+                      "remaining_points",
+                      "suspensive_effect",
+                      "restitution",
+                      "reopening",
+                      "legal_aid",
+                      "whole_decision"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^point:[IVX]+$"
+                  }
+                ]
+              },
+              "dispositions": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "refused",
+                    "granted",
+                    "upheld",
+                    "dismissed",
+                    "rejected",
+                    "annulled",
+                    "remanded",
+                    "discontinued",
+                    "modified",
+                    "permanent",
+                    "moot",
+                    "corrected",
+                    "suspended",
+                    "declared"
+                  ]
+                }
+              },
+              "via": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "norm",
+                    "wording",
+                    "point",
+                    "whole_decision"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "dispositions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "end",
+              "text",
+              "types",
+              "issues",
+              "points",
+              "operative_part_id"
+            ],
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "text": {
+                "description": "full_text[start:end].",
+                "type": "string",
+                "minLength": 1
+              },
+              "types": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "enum": [
+                    "refused",
+                    "granted",
+                    "upheld",
+                    "dismissed",
+                    "rejected",
+                    "annulled",
+                    "remanded",
+                    "discontinued",
+                    "modified",
+                    "permanent",
+                    "moot",
+                    "corrected",
+                    "suspended",
+                    "declared"
+                  ]
+                }
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "issue",
+                    "via"
+                  ],
+                  "properties": {
+                    "issue": {
+                      "enum": [
+                        "subsidiary_extension",
+                        "asylum",
+                        "subsidiary_protection",
+                        "revocation_asylum",
+                        "revocation_subsidiary",
+                        "residence_title",
+                        "return_decision",
+                        "deportation",
+                        "departure_deadline",
+                        "entry_ban",
+                        "admissibility",
+                        "res_judicata",
+                        "remaining_points",
+                        "suspensive_effect",
+                        "restitution",
+                        "reopening",
+                        "legal_aid",
+                        "whole_decision"
+                      ]
+                    },
+                    "via": {
+                      "enum": [
+                        "norm",
+                        "wording",
+                        "whole_decision"
+                      ]
+                    }
+                  }
+                }
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "point",
+                    "issue",
+                    "start",
+                    "end"
+                  ],
+                  "properties": {
+                    "point": {
+                      "type": "string",
+                      "pattern": "^[IVX]+$"
+                    },
+                    "issue": {
+                      "enum": [
+                        "subsidiary_extension",
+                        "asylum",
+                        "subsidiary_protection",
+                        "revocation_asylum",
+                        "revocation_subsidiary",
+                        "residence_title",
+                        "return_decision",
+                        "deportation",
+                        "departure_deadline",
+                        "entry_ban",
+                        "admissibility",
+                        "res_judicata",
+                        "remaining_points",
+                        "suspensive_effect",
+                        "restitution",
+                        "reopening",
+                        "legal_aid",
+                        null
+                      ]
+                    },
+                    "start": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "end": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "operative_part_id": {
+                "description": "The operative part the disposition stands in.",
+                "type": "string",
+                "pattern": "#s:[0-9]{2,}$"
+              }
+            }
+          }
+        },
+        "parts": {
+          "description": "Each operative part of the unit with its own reading: form, how it joined the part before it, outcome, subtype, protection, revision.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operative_part_id",
+              "decision_form",
+              "joined_by",
+              "outcome",
+              "outcome_subtype",
+              "protection",
+              "revision"
+            ],
+            "properties": {
+              "operative_part_id": {
+                "type": "string",
+                "pattern": "#s:[0-9]{2,}$"
+              },
+              "decision_form": {
+                "enum": [
+                  "judgment",
+                  "order",
+                  "judgment_and_order",
+                  null
+                ]
+              },
+              "joined_by": {
+                "description": "null for the first part; continuation or repeated_head (config/outcomes/bvwg_units.yaml).",
+                "enum": [
+                  null,
+                  "continuation",
+                  "repeated_head"
+                ]
+              },
+              "outcome": {
+                "enum": [
+                  "upheld",
+                  "partially_upheld",
+                  "dismissed",
+                  "rejected",
+                  "remanded",
+                  "other"
+                ]
+              },
+              "outcome_subtype": {
+                "enum": [
+                  null,
+                  "discontinued",
+                  "interim",
+                  "procedural",
+                  "unrecognized"
+                ]
+              },
+              "protection": {
+                "enum": [
+                  "asylum",
+                  "subsidiary_protection",
+                  "residence_right",
+                  "remanded",
+                  "none",
+                  "not_decided"
+                ]
+              },
+              "revision": {
+                "enum": [
+                  "inadmissible",
+                  "admissible",
+                  "partly",
+                  "none"
+                ]
+              }
+            }
+          }
+        },
+        "revision": {
+          "description": "Admissibility of a revision as stated; partly when the unit's parts, or the clauses of one part, differ.",
+          "enum": [
+            "inadmissible",
+            "admissible",
+            "partly",
+            "none"
+          ]
+        },
+        "problems": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "no_disposition",
+              "unattributed_sentence",
+              "unresolved_point",
+              "ambiguous_asylg"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

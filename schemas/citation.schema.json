@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "citation.schema.json",
+  "title": "Citation",
+  "description": "One occurrence of an explicit legal reference in a document: a rule-derived textual reference, kept outside the document. Explicit = a provision designator (§ / Art.) followed by a known act, an EU act number or 'leg. cit.' (the act cited last before it in the paragraph), a law-gazette or EU act number, or a formal decision identifier (case number, ECLI, VfSlg number, CJEU case number, ECtHR application number). A law-gazette number ('BGBl. I Nr. 100/2005') is of type publication_reference: the issue of the federal law gazette in which an act or its amendment was published; kept with its span, but not a citation of a norm.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "citation_id",
+    "source_document_id",
+    "paragraph_id",
+    "start",
+    "end",
+    "text",
+    "type",
+    "normalized",
+    "target_id",
+    "method",
+    "rule"
+  ],
+  "properties": {
+    "citation_id": {
+      "description": "<source_document_id>#cit:<0001>, numbered in text order.",
+      "type": "string",
+      "pattern": "#cit:[0-9]{4,}$"
+    },
+    "source_document_id": {
+      "description": "The citing document.",
+      "$ref": "#/$defs/document_id"
+    },
+    "paragraph_id": {
+      "type": "string",
+      "pattern": "#p:[0-9]{4,}$"
+    },
+    "start": {
+      "description": "Offset into the citing document's full_text.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "end": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "text": {
+      "description": "full_text[start:end], verbatim.",
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "enum": [
+        "national_legislation",
+        "national_case",
+        "eu_legislation",
+        "cjeu_case",
+        "echr_provision",
+        "ecthr_case",
+        "international_treaty",
+        "other",
+        "publication_reference"
+      ]
+    },
+    "normalized": {
+      "description": "Normalized form of the cited item, e.g. 'AsylG 2005 § 3 Abs. 1', 'VwGH Ra 2021/18/0336', 'VfGH E 988/2025', 'EuGH C-608/22', 'BGBl. I Nr. 100/2005'.",
+      "type": ["string", "null"]
+    },
+    "target_id": {
+      "description": "The cited document where `normalized` names exactly one document of the citation index (null where that is the citing document itself): BVwG document numbers, ECLI and VwGH / VfGH case numbers, of the BVwG documents for a BVwG decision and of the documents of all three courts for a VwGH or VfGH decision. Otherwise, for an Austrian case number, the case_reference_id of the cited case. Null for legislation and other identifiers (VfSlg, CJEU and ECtHR numbers, law-gazette and EU act numbers).",
+      "anyOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/document_id"},
+        {"$ref": "#/$defs/case_reference_id"}
+      ]
+    },
+    "method": {
+      "enum": ["human", "rule_based", "model_based", "hybrid"]
+    },
+    "rule": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "document_id": {
+      "type": "string",
+      "pattern": "^ris:(bvwg|vwgh|vfgh):[A-Z0-9_]+$"
+    },
+    "case_reference_id": {
+      "description": "case:<court>:<case number as spelled in RIS>, e.g. case:vwgh:Ra 2018/01/0106, case:vfgh:E2858/2025, case:bvwg:W150 2159588-2.",
+      "type": "string",
+      "pattern": "^case:(bvwg|vwgh|vfgh):\\S.*$"
+    }
+  }
+}

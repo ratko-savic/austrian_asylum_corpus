@@ -1,0 +1,115 @@
+# Stage 07: relations between BVwG, VwGH and VfGH decisions (src/asylum_corpus/links/; schemas/relation.schema.json).
+# Built on the matches of the connected step of the download (interim/connected/connections.jsonl), which this stage
+# turns into relation records with evidence in the documents.
+
+# How a match of the connected step becomes a reviews relation (source = the VwGH/VfGH decision). The connected step's
+# confidence says how the BVwG decision was identified among the candidates with that case number.
+reviews:
+  bvwg_case_number:
+    high: exact_identifier         # the document number ("/23E") names the document
+    medium: identifier_and_date    # the case number and the decision date cited next to it
+    low: identifier_only           # the only candidate with that case number decided before
+  date_fallback:
+    medium: date_fallback          # no case number: decision date and BFA Bescheid date, the weakest match
+  # Not relations: a mention "cited" (a citation, not a review); later_bvwg_cites_vfgh (a later BVwG decision cites
+  # the VfGH decision: the reviewed decision is inferred, not named); transfer_to_vwgh (the VfGH transferred the
+  # complaint: the VwGH decision reviews, see transferred_to); ambiguous matches (several candidates, none
+  # identified), listed in unresolved.jsonl.
+
+# Always checked: the BVwG decision must be dated on or before the VwGH/VfGH decision; otherwise the match is
+# unresolved (date-fallback matches of the connected step sometimes point at a later decision).
+#
+# A joined BVwG decision is published once per appellant, with identical texts. The relation goes to the copy whose
+# own case number the higher court names; if no copy has it as its own, to the copy the connected step identified.
+
+# identifier_only: the connected step takes the only candidate with the case number when neither the document number
+# nor a cited date identifies it. The document number ("/15E", "/3Z") names one document of the case. When the higher
+# court cites the case number with a document number and the candidate's own number for that case number is another,
+# the higher court names another document - mostly the decision on the merits, while the only candidate is an interim
+# order ("Z") or an earlier decision. That document is not in the corpus, so the match stays unresolved. The
+# candidate's own number: its document number for that case number, else the number printed at the head of its text
+# (`head_number`; misprints such as "L526 2169962/2Z" keep the number).
+# Exception: when the candidate's oral pronouncement date (other than its decision date) stands next to the cited
+# number, the higher court names the oral decision, often by the number of its minutes or short copy ("vom 5. Februar
+# 2018, L519 2175862-1/8Z" for the written copy L519 2175862-1/14E of 18 July 2018). That is the case number plus the
+# pronouncement date: the relation gets the match type identifier_and_date (rule "...:low+pronouncement_date").
+head_number: '^\s*[A-Z]\s?\d{3}\s+(\d{7})(?:\s?-\s?\d+)?\s?/\s?(\d+\s?[A-Z])\b'
+
+# date_fallback: VfGH texts without a BVwG case number, matched by the connected step on a BVwG decision date within
+# 300 characters of "Bundesverwaltungsgericht" and on the date of that decision's BFA Bescheid near "Bescheid" or
+# "BFA". Wrong matches mostly take a date that is not the BVwG decision's (a cited VfGH or VwGH decision, a hearing, a
+# letter, a country report). A match becomes a relation only if all checks hold, in this order; the first that fails
+# is the reason in unresolved.jsonl.
+date_fallback:
+  # 1. The VfGH decides on a complaint against an administrative court's decision (Art. 144 B-VG) under the register
+  #    E. Norm reviews (G, V), claims (A) and conflicts of jurisdiction (K) do not review a BVwG decision, even when
+  #    they tell the history of one.
+  registers: [E]
+  # 2. The target's decision or pronouncement date stands in the source as the date of a decision: "Erkenntnis (des
+  #    Bundesverwaltungsgerichtes) vom <date>", "Beschluss vom", "Entscheidung vom", "Erkenntnissen (des BVwG) jeweils
+  #    vom", "Ausfertigung ... am <date>", "ausgefertigt am <date>", or "<date> mündlich verkündet". The text right
+  #    before the date must end with decision_before, or the text right after it begin with decision_after.
+  decision_before: '(?:Erkenntnis(?:ses|se|sen)?|Teilerkenntnis(?:ses)?|Beschlu(?:ss|ß)(?:es)?|Beschlüssen?|Entscheidung(?:en)?)\s+(?:des\s+(?:Bundesverwaltungsgericht(?:e)?s|BVwG)\s+)?(?:\(BVwG\)\s+)?(?:jeweils\s+)?vom\s*["„]?$|Ausfertigung\s+(?:\S+\s+){0,3}?(?:am|vom)\s*$|ausgefertigt\s+(?:am|vom)\s*$'
+  decision_after: '^\W{0,3}(?:\S+\s+){0,6}?mündlich\s+verkündet'
+  #    It is not the date of a VfGH or VwGH decision: followed by that court's case number ("VfGH 18.12.2025,
+  #    E1944-1948/2025", "vom 17.10.2019, Ra 2019/18/0353"), introduced as that court's ("des Verfassungsgerichtshofes
+  #    vom", "VfGH 7.3.2017"), or with that court as the subject ("Mit Beschluss vom 9. April 2026 gab der
+  #    Verfassungsgerichtshof ...").
+  higher_after: '^["“]?\s*,?\s*(?:[A-Z]{1,2}\s?\d+(?:-\d+)?/\d{4}|R[ao]\s?\d{4}/|\d{4}/\d{2}/\d{4})|^\W{0,3}(?:\S+\s+){0,3}?(?:der|den)\s+(?:Verfassungsgerichtshof|Verwaltungsgerichtshof|VfGH|VwGH)\b'
+  higher_before: '(?:Verfassungsgerichtshof|Verwaltungsgerichtshof)e?s\s+(?:\S+\s+){0,2}?vom\s*$|(?:VfGH|VwGH)\s+$'
+  near: 'Bundesverwaltungsgericht|BVwG'
+  near_chars: 300
+  # 3. The date of the target's BFA Bescheid (the one the connected step matched) stands in the source as the date of
+  #    a Bescheid ("Mit Bescheid (des BFA ...) vom <date>"), in the same sentence. Otherwise the connected step matched
+  #    an unrelated date (the application, the complaint, an interview, a deadline).
+  bescheid_before: '\bBescheid(?:es|e|en|s)?\s+(?:(?!vom\b)[^\s.;]+\.?\s+){0,14}?(?:jeweils\s+)?vom\s*$'
+  sentence_end: '(?<=[a-zäöüß)])\.\s+(?=[A-ZÄÖÜ0-9])|\n'
+  # 4. Chronology: a VfGH case number "E 1234/2020" is registered when the complaint (or the application for legal
+  #    aid) arrives, within six weeks of the decision's service: not later than the year after the BVwG decision.
+  #    The other side (not before the decision's year) is not checked: a legal-aid application after an oral
+  #    pronouncement gets its number before the written copy that RIS dates, and "E 3230/2022 ua" hides the later
+  #    numbers of the other complainants decided together.
+  years_after: 1
+  check_years_before: false
+  # 5. The complainant must have lost something: the BFA cannot complain to the VfGH, and an appellant whom the BVwG
+  #    granted asylum without refusing anything has nothing to complain of. A target whose operative part grants the
+  #    status of a person entitled to asylum (granted) and contains no word of a refusal, rejection, discontinuation,
+  #    revocation or remittal (refused) is not the decision under review.
+  granted: 'Status\s+(?:des|der|eines|einer)\s+Asylberechtigten\s+zuerkannt|Asyl\s+gewährt'
+  refused: 'abgewiesen|zurückgewiesen|eingestellt|nicht\s+zuerkannt|aberkannt|unbegründet|keine\s+Folge|nicht\s+Folge|zurückverwiesen|behoben|aufgehoben'
+  # 6. History: a VfGH text often tells earlier decisions in the same person's proceedings (annulled by the VfGH or
+  #    the VwGH, or a first application) before the decision it reviews, which is the latest. When the checks leave
+  #    several decisions with the same file number (the seven digits of the case number, e.g. 2180308 in "W192
+  #    2180308-2") on different dates, only those of the latest date are kept (the pronouncement date where there is
+  #    one, so that the short and the full copy of one oral decision count as one). A VfGH decision on one complaint
+  #    (one case number, no "ua", no range) reviews one decision, so there the latest is kept across files too. Where
+  #    several complaints are decided together ("E 3608/2021 ua"), the decisions of different persons are all kept.
+  # Evidence: the passage with the date in its decision phrase, and the passage with the BFA date in its Bescheid
+  # phrase, so that a reader sees both.
+
+# Joined decisions: the copies of a joined BVwG decision have one date and the same document numbers, so the connected
+# step finds them all and leaves the match ambiguous. Two kinds of such matches are linked; other ambiguous matches
+# (different decisions, a family decided in separate documents, a VfGH decision on one complaint) stay unresolved.
+#   By case number: the copy whose own case number is named, when its decision or pronouncement date stands next to
+#     the number - case number and date name it (identifier_and_date), as for an identified match.
+#   By date: where the VfGH decides several complaints together ("ua", a range), one relation per copy - each
+#     complainant's decision is under review. Every copy must pass the date_fallback checks 1-6; for check 3 the BFA
+#     date is one of the copy's BFA Bescheid dates as the connected step read them (bvwg_heads.jsonl.gz).
+
+# Evidence: the paragraph of the document in which the identifier stands, cut to this many characters before and
+# after it (same_case: the decision's own case number with the 40 characters after it).
+evidence_before: 220
+evidence_after: 80
+
+# same_case: a BVwG decision and the next later BVwG decision with the same own case number, the chamber prefix aside
+# (e.g. the new decision after a remand or an annulment); the evidence is the own case number in either decision.
+# Copies of one joined decision (same date) are not linked to each other.
+
+# transferred_to: the VfGH transferred the complaint to the VwGH (named by the VwGH decision); source = the VfGH
+# decision, or case:vfgh:<number> when it is not among the parsed VfGH documents. The VfGH case number of the
+# transferred complaint must fit the BVwG decision that the VwGH decision reviews: registered in its year (or that of
+# its oral pronouncement) or in the next `transfer_years_after` years. Otherwise the VfGH number stands in the
+# procedural history (a complaint against an earlier decision of the case, which the VfGH declined before the reviewed
+# decision was made), is a precedent cited, or is misprinted, and the transfer is unresolved. A VwGH decision without a
+# reviews relation is not checked.
+transfer_years_after: 1

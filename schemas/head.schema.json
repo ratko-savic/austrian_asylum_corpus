@@ -1,0 +1,920 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "head.schema.json",
+  "title": "Head labels of a BVwG decision",
+  "description": "Labels read from the head (subject sections) and the case history of one BVwG decision by rules (stage 04; config/head/bvwg_head.yaml, config/head/bvwg_history.yaml). Spans are offsets into the decision's full_text. Values not printed are null or empty. The judge's name is personal data: the package (stage 10) replaces it by a pseudonymous judge ID.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "ris_id",
+    "decision_date",
+    "judge",
+    "appellants",
+    "nationalities",
+    "nationality_set",
+    "representation",
+    "challenged_decisions",
+    "scope",
+    "failure_to_act",
+    "appellant_gender",
+    "history",
+    "hearing",
+    "interpreter",
+    "dates",
+    "head_chars",
+    "problems",
+    "new_law"
+  ],
+  "properties": {
+    "document_id": {
+      "type": "string",
+      "pattern": "^ris:bvwg:[A-Z0-9_]+$"
+    },
+    "ris_id": {
+      "type": "string"
+    },
+    "decision_date": {
+      "type": "string"
+    },
+    "judge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "gender",
+        "formation",
+        "department",
+        "span"
+      ],
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "As printed, without academic titles."
+        },
+        "gender": {
+          "enum": [
+            "female",
+            "male",
+            null
+          ],
+          "description": "From 'Richterin' / 'Richter' (or 'Einzelrichter(in)', 'Vorsitzende(n)')."
+        },
+        "formation": {
+          "enum": [
+            "single_judge",
+            "senate",
+            null
+          ]
+        },
+        "department": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The court department from the case number ('W123')."
+        },
+        "span": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "end"
+              ],
+              "properties": {
+                "start": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "end": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "appellants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "count_basis",
+        "births_printed",
+        "minors",
+        "minor_spans"
+      ],
+      "properties": {
+        "count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "count_basis": {
+          "enum": [
+            "case_numbers",
+            "numbered_list",
+            "file_numbers",
+            "head_persons"
+          ],
+          "description": "Which count gave the number (the largest): the case numbers, the head's numbered list, the distinct persons of the challenged decisions' file numbers, or, where the head has no numbered list, the unnumbered persons with an article in the persons part of the head's first block."
+        },
+        "births_printed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minors": {
+          "type": "boolean",
+          "description": "The head names a minor ('mj.', 'minderjährig', a statutory representative, or a parent, the child and youth welfare or a co-appellant as representative)."
+        },
+        "minor_spans": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "end"
+            ],
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "nationalities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "country",
+          "printed",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "country": {
+            "type": "string",
+            "description": "Normalised (config list), 'stateless', 'anonymised', 'unknown', or as printed (title-cased and without a state form where the lookup changed it)."
+          },
+          "printed": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer"
+          },
+          "end": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "nationality_set": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "representation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "represented",
+        "kinds",
+        "representatives"
+      ],
+      "properties": {
+        "represented": {
+          "type": "boolean",
+          "description": "A representative is printed ('vertreten durch …'); false: none printed."
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "organisation",
+              "lawyer",
+              "guardian",
+              "anonymised",
+              "other"
+            ]
+          },
+          "description": "The kinds of the appeal's representatives; a guardian (statutory representative of minors) only where no other representative is named. Every printed representative stays in `representatives` with its kind."
+        },
+        "representatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "printed",
+              "start",
+              "end"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "organisation",
+                  "lawyer",
+                  "guardian",
+                  "anonymised",
+                  "other"
+                ]
+              },
+              "printed": {
+                "type": "string"
+              },
+              "start": {
+                "type": "integer"
+              },
+              "end": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "challenged_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "authority",
+          "authority_printed",
+          "date",
+          "file_number",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "authority": {
+            "enum": [
+              "BFA",
+              "BAA",
+              "embassy",
+              "other",
+              null
+            ],
+            "description": "BFA (Bundesamt für Fremdenwesen und Asyl), BAA (Bundesasylamt, before 2014), embassy (an Austrian representation abroad: entry procedure, § 35 AsylG 2005), other. null: no authority printed."
+          },
+          "authority_printed": {
+            "type": "string"
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "file_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start": {
+            "type": "integer"
+          },
+          "end": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "whole",
+        "points",
+        "span"
+      ],
+      "properties": {
+        "whole": {
+          "type": "boolean",
+          "description": "The appeal is against the whole decision as printed; false: against the named points."
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[IVX]+$"
+          }
+        },
+        "span": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "end"
+              ],
+              "properties": {
+                "start": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "end": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "failure_to_act": {
+      "type": "boolean"
+    },
+    "head_chars": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "no_head",
+          "no_judge",
+          "no_nationality",
+          "no_challenged_decision"
+        ]
+      }
+    },
+    "appellant_gender": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "persons",
+        "scores",
+        "cues"
+      ],
+      "description": "From the court's gendered wording. One appellant: weighted cues (articles, nouns); several: per person, numbered or listed in the head. Not personal data beyond the decision text.",
+      "properties": {
+        "value": {
+          "enum": [
+            "female",
+            "male",
+            "mixed",
+            "unknown"
+          ]
+        },
+        "basis": {
+          "enum": [
+            "cues",
+            "persons",
+            "cues_reasoning"
+          ],
+          "description": "cues: one appellant, the weighted cues of the head and the case-history parts; cues_reasoning: the same cues in the whole reasoning, where those parts do not decide; persons: several appellants, per person."
+        },
+        "persons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "person",
+              "gender",
+              "scores"
+            ],
+            "properties": {
+              "person": {
+                "type": "integer"
+              },
+              "gender": {
+                "enum": [
+                  "female",
+                  "male",
+                  null
+                ]
+              },
+              "scores": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "scores": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "cues": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parts_read",
+        "events"
+      ],
+      "properties": {
+        "parts_read": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "rule",
+              "part",
+              "start",
+              "end",
+              "date",
+              "precision",
+              "anonymised",
+              "printed",
+              "at"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "court_decision",
+                  "hearing"
+                ]
+              },
+              "rule": {
+                "type": "string",
+                "description": "The rule id in config/head/bvwg_history.yaml ('head' for the head's hearing)."
+              },
+              "part": {
+                "type": "string",
+                "description": "The coarse section the event was read from."
+              },
+              "start": {
+                "type": "integer"
+              },
+              "end": {
+                "type": "integer"
+              },
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+                "description": "ISO date, year-month or year as precise as the text; null where anonymised or impossible (a misprinted day)."
+              },
+              "precision": {
+                "enum": [
+                  "day",
+                  "month",
+                  "year",
+                  "anonymised"
+                ]
+              },
+              "anonymised": {
+                "type": "boolean",
+                "description": "The date is printed (partly) as XXXX."
+              },
+              "printed": {
+                "type": "string"
+              },
+              "at": {
+                "type": "integer",
+                "description": "Offset of the date in full_text."
+              },
+              "kind": {
+                "enum": [
+                  "earlier",
+                  "this_decision",
+                  "this_proceeding",
+                  null
+                ],
+                "description": "court_decision: earlier / this_decision; hearing: this_proceeding (on or after the latest challenged decision; any date where no challenged decision is dated) / earlier, null for a hearing whose date is anonymised."
+              },
+              "court": {
+                "enum": [
+                  "BVwG",
+                  "AsylGH",
+                  "UBAS",
+                  "VwGH",
+                  "VfGH",
+                  "unnamed"
+                ]
+              },
+              "court_inferred": {
+                "type": "boolean",
+                "description": "court_decision: no court named; the appeal court of the decision's date (UBAS until 30 June 2008, AsylGH until 2013, BVwG since)."
+              }
+            }
+          }
+        }
+      }
+    },
+    "hearing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "in_head",
+        "not_held_span",
+        "reported_span"
+      ],
+      "properties": {
+        "value": {
+          "enum": [
+            "held",
+            "not_held",
+            "unknown"
+          ]
+        },
+        "in_head": {
+          "type": "boolean"
+        },
+        "not_held_span": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "end"
+              ],
+              "properties": {
+                "start": {
+                  "type": "integer"
+                },
+                "end": {
+                  "type": "integer"
+                },
+                "part": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "reported_span": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "end"
+              ],
+              "properties": {
+                "start": {
+                  "type": "integer"
+                },
+                "end": {
+                  "type": "integer"
+                },
+                "part": {
+                  "type": "string"
+                }
+              }
+            }
+          ],
+          "description": "held because a sentence names the court hearing (dated or not, also of an earlier round) and nothing else decides: that sentence."
+        }
+      }
+    },
+    "interpreter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "first_questioning",
+        "bfa_interview",
+        "court_hearing"
+      ],
+      "properties": {
+        "first_questioning": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "interpreter",
+            "languages",
+            "spans"
+          ],
+          "properties": {
+            "interpreter": {
+              "enum": [
+                "yes",
+                "no",
+                "not_mentioned",
+                "no_hearing",
+                null
+              ],
+              "description": "yes: the text names an interpreter at this step; no: it says there was none; not_mentioned: the step is mentioned without an interpreter (court hearing: also a hearing held but never mentioned as a step); null: the step is not mentioned (court hearing: and whether a hearing was held is unknown); no_hearing (court hearing): none was held and the text names no interpreter."
+            },
+            "languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "spans": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "properties": {
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "part": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "bfa_interview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "interpreter",
+            "languages",
+            "spans"
+          ],
+          "properties": {
+            "interpreter": {
+              "enum": [
+                "yes",
+                "no",
+                "not_mentioned",
+                "no_hearing",
+                null
+              ],
+              "description": "yes: the text names an interpreter at this step; no: it says there was none; not_mentioned: the step is mentioned without an interpreter (court hearing: also a hearing held but never mentioned as a step); null: the step is not mentioned (court hearing: and whether a hearing was held is unknown); no_hearing (court hearing): none was held and the text names no interpreter."
+            },
+            "languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "spans": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "properties": {
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "part": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "court_hearing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "interpreter",
+            "languages",
+            "spans"
+          ],
+          "properties": {
+            "interpreter": {
+              "enum": [
+                "yes",
+                "no",
+                "not_mentioned",
+                "no_hearing",
+                null
+              ],
+              "description": "yes: the text names an interpreter at this step; no: it says there was none; not_mentioned: the step is mentioned without an interpreter (court hearing: also a hearing held but never mentioned as a step); null: the step is not mentioned (court hearing: and whether a hearing was held is unknown); no_hearing (court hearing): none was held and the text names no interpreter."
+            },
+            "languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "spans": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "properties": {
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "part": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "dates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "pronouncement",
+        "court_decisions",
+        "anonymised",
+        "pronouncement_source",
+        "court_decision_list"
+      ],
+      "properties": {
+        "decision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pronouncement": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "court_decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "anonymised": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "pronouncement_source": {
+          "enum": [
+            "stage 03",
+            "head (stage 04)",
+            "head hearing date (stage 04)",
+            null
+          ],
+          "description": "Where the pronouncement date was read: stage 03 (the head before its introductory sentence), or the head and the start of the reasoning read by stage 04. 'head hearing date (stage 04)': the head says the decision was pronounced orally without a date; the date of the one hearing the head names."
+        },
+        "court_decision_list": {
+          "type": "array",
+          "description": "The earlier court decisions with their court (distinct; a less precise date refined by a more precise one of the same court is dropped).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "court"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+              },
+              "court": {
+                "enum": [
+                  "BVwG",
+                  "AsylGH",
+                  "UBAS",
+                  "VwGH",
+                  "VfGH",
+                  "unnamed"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "new_law": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "date",
+        "span"
+      ],
+      "description": "Whether the proceeding runs under the law in force since 12 June 2026 (the EU asylum and migration pact), by the start of the proceeding (config/head/bvwg_history.yaml, new_law). no: the decision or a challenged decision is dated before that day (an application precedes its decision); yes: the latest application for international protection dated in the head or the procedural history (not after the challenged decision) is dated on or after it; no: every dated application is before it; unknown otherwise. Only dates certainly before or after the day count.",
+      "properties": {
+        "value": {
+          "enum": [
+            "yes",
+            "no",
+            "unknown"
+          ]
+        },
+        "basis": {
+          "enum": [
+            "decision_date",
+            "challenged_decision",
+            "application",
+            null
+          ]
+        },
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "the date the value rests on (ISO, day, year-month or year)"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "end"
+              ],
+              "properties": {
+                "start": {
+                  "type": "integer"
+                },
+                "end": {
+                  "type": "integer"
+                },
+                "part": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

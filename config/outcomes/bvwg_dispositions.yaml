@@ -1,0 +1,118 @@
+# Dispositions in the BVwG's operative part (stage 08).
+#
+# Each operative part ("Spruch") is read sentence by sentence (src/asylum_corpus/outcomes/bvwg.py).
+# Every pattern is applied to the lower-case sentence with letter-spaced words closed up ("a b g e w i e s e n" ->
+# "abgewiesen"). The examples are typical wordings, not exhaustive.
+#
+#   effect     favourable / unfavourable - for the normalized outcome; neutral - recorded, no effect;
+#              procedural - an outcome of its own when nothing else is decided (subtype of "other")
+#   removes    the matched text is removed before the later patterns are applied ("nicht zuerkannt" is not "zuerkannt")
+
+dispositions:
+  - id: refused
+    effect: unfavourable
+    removes: true
+    pattern: 'nicht (?:zu)?(?:zuerkannt|zuzuerkennen|erteilt|zu erteilen|gewährt|zu gewähren)|(?:wird|werden) (?:\w+ ){0,4}nicht zuerkannt'
+    examples: ['Der Beschwerde wird die aufschiebende Wirkung nicht zuerkannt.']
+  - id: granted
+    effect: favourable
+    pattern: 'zuerkannt|zuzuerkennen|\berteilt|zu erteilen|\bgewährt|zu gewähren'
+    examples: ['… der Status des Asylberechtigten zuerkannt.', '… eine befristete Aufenthaltsberechtigung … erteilt.']
+  - id: upheld
+    effect: favourable
+    # not "nicht stattgegeben"
+    pattern: '(?<!nicht )stattgegeben|(?<!nicht )stattzugeben|(?<!nicht )stattgeben|in stattgebung|(?<!nicht )(?<!keine )folge gegeben'
+    examples: ['Der Beschwerde wird stattgegeben …', 'In Stattgebung der Beschwerde …']
+  - id: dismissed
+    effect: unfavourable
+    pattern: 'abgewiesen|abzuweisen|nicht folge gegeben|keine folge gegeben|nicht folge zu geben|nicht stattgegeben|nicht stattzugeben'
+    examples: ['Die Beschwerde wird als unbegründet abgewiesen.', 'Der Beschwerde wird nicht Folge gegeben.', 'Dem Antrag auf Wiederaufnahme wird nicht stattgegeben.']
+  - id: rejected
+    effect: unfavourable
+    pattern: 'zurückgewiesen|zurückzuweisen'
+    examples: ['Die Beschwerde wird als verspätet zurückgewiesen.']
+  - id: annulled
+    effect: favourable
+    # "ersatzlos" alone also catches misprints ("ersatzlos aufgeboben") and "ersatzlos entfällt"; not "ersatzlos
+    # gestrichen" (a word struck from the authority's point: a modification)
+    pattern: '\bbehoben\b|aufgehoben|zu beheben|aufzuheben|ersatzlos(?! gestrichen)'
+    examples: ['… der angefochtene Bescheid ersatzlos behoben.']
+  - id: remanded
+    effect: favourable
+    pattern: 'zurückverwiesen|zurückzuverweisen'
+    examples: ['… die Angelegenheit … zur Erlassung eines neuen Bescheides an das Bundesamt … zurückverwiesen.']
+  - id: discontinued
+    effect: procedural
+    subtype: discontinued
+    pattern: 'eingestellt|einzustellen'
+    examples: ['Das Verfahren wird wegen Zurückziehung der Beschwerde eingestellt.']
+  - id: modified
+    effect: neutral
+    # also the court's order that a point of the authority's decision "hat zu lauten" ("Der jeweilige Spruchpunkt
+    # VII. ... hat zu lauten: ...")
+    pattern: 'mit der maßgabe|abgeändert|abzuändern|abänder|zu lauten hat|hat zu lauten|zu lauten haben|haben zu lauten'
+    examples: ['Die Beschwerde wird mit der Maßgabe als unbegründet abgewiesen, dass …', 'Spruchpunkt VI. des angefochtenen Bescheides hat zu lauten: „…“']
+  - id: permanent
+    effect: favourable
+    # also "auf Dauer für unzulässig erklärt" and "auf Dauer nicht zulässig"
+    pattern: 'auf dauer (?:für |als )?unzulässig|auf dauer nicht zulässig'
+    examples: ['… eine Rückkehrentscheidung … auf Dauer unzulässig ist.', '… eine Rückkehrentscheidung … auf Dauer für unzulässig erklärt.']
+  - id: moot
+    effect: procedural
+    subtype: procedural
+    pattern: 'gegenstandslos'
+    examples: ['Der Antrag auf internationalen Schutz wird … als gegenstandslos abgelegt.']
+  - id: corrected
+    effect: procedural
+    subtype: procedural
+    pattern: 'berichtigt|zu berichtigen'
+    examples: ['Der Spruch des … Erkenntnisses wird dahingehend berichtigt, dass …']
+  - id: suspended
+    effect: procedural
+    subtype: interim
+    pattern: 'ausgesetzt|auszusetzen|unterbrochen'
+    examples: ['Das Beschwerdeverfahren wird gemäß § 17 VwGVG iVm § 38 AVG … ausgesetzt.']
+  - id: declared
+    effect: neutral
+    pattern: 'festgestellt|festzustellen'
+    examples: ['Gemäß § 3 Abs. 5 AsylG 2005 wird festgestellt, dass … die Flüchtlingseigenschaft zukommt.']
+
+# An annulment under these provisions or with these wordings is a remand, also without "zurückverwiesen": the
+# authority decides again.
+cassation: '§ ?28 abs\.? ?3|§ ?21 abs\.? ?3(?: erster satz| zweiter satz)? bfa-vg|neuen bescheides|neuerlichen entscheidung|zur (?:neuerlichen|neuen) (?:verhandlung|entscheidung)|verfahren (?:über den antrag|über die anträge)[^.]{0,80}zugelassen'
+
+# The clause on the admissibility of a revision (Art. 133 Abs. 4 B-VG) is cut out of its sentence and recorded as
+# `revision`; the rest of the sentence is read.
+revision: '(?:\b[b-z]\.?\)\s*)?(?:die|eine) (?:ordentliche )?revision\b.{0,300}?\bzulässig\b[^.]*'
+revision_inadmissible: 'nicht\s+zulässig|unzulässig'
+
+# A sentence in which the court corrects a decision ("Das Erkenntnis ..., mit welchem der Beschwerde stattgegeben
+# und ... der Status des Asylberechtigten zuerkannt wurde, wird ... dahingehend berichtigt, dass ...") keeps only the
+# types corrected and modified: its other words describe the decision corrected, not a decision of this one. Not
+# "..., berichtigt durch den Bescheid vom ..., werden ersatzlos behoben" (no "wird / werden" before "berichtigt").
+correction: '(?s)\b(?:wird|werden)\b.{0,300}?\b(?:berichtigt|zu berichtigen)\b'
+keeps_with_correction: [corrected, modified]
+
+# After these words the court quotes the authority's operative part as corrected:
+#   - the words themselves are read: "zu lauten hat" and its forms give type modified, "wie folgt" and "nunmehr
+#     lautet" no type;
+#   - where the court's own words before them dismiss or reject (the authority's decision stands, its corrected
+#     wording repeats it) or correct a decision, the quoted wording is not read: up to where its quotation closes when
+#     it opens with a quotation mark after the words (`quote_open`; „ closes with “ or ”, counting inner „ … “; " with
+#     "; “ with ” or “; » with «), also across sentences; otherwise to the end of the sentence; a quotation closed
+#     right before the words ('„ … “ zu lauten hat') is not read either;
+#   - where the court's own words uphold or change the decision ("Der Beschwerde wird Folge gegeben und der
+#     angefochtene Bescheid wie folgt abgeändert: ... der Status des Asylberechtigten zuerkannt"), the quoted wording
+#     is the court's new decision and is read;
+#   - a sentence also ends after '."' / '.“', so that the cut does not swallow the next point.
+# Limits: an unquoted list of points after the words is read from its second point on, and an unclosed quotation is
+# cut at the end of its sentence.
+quote: 'zu lauten hat|hat zu lauten|wie folgt|nunmehr lautet|zu lauten haben|haben zu lauten'
+quote_open: {'„': '“”', '"': '"', '“': '”“', '»': '«'}
+
+# A dispositive sentence without an issue or a numbered point whose object is the appeal or the challenged decision
+# as a whole concerns the whole decision ("Die Beschwerde wird als unbegründet abgewiesen."); also the appeal against a
+# preliminary decision ("Der Vorlageantrag gegen die Beschwerdevorentscheidung wird ... zurückgewiesen") and the
+# application for international protection ("Der Antrag auf internationalen Schutz wird ... als gegenstandslos
+# abgelegt").
+whole_decision: '\b(?:die|der|den) beschwerden?\b|angefochtenen?\b|bekämpften?\b|\bdas verfahren\b|\bdie verfahren\b|beschwerdeverfahren|die angelegenheit|vorlageantr|beschwerdevorentscheidung|antrag\s+auf\s+internationalen\s+schutz'

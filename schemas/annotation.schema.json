@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "annotation.schema.json",
+  "title": "Annotation",
+  "description": "A rule-derived annotation of a document, kept outside it: the document it belongs to, its type, its value (defined by the schema of the type, e.g. outcome.schema.json), the spans of its evidence and the method.",
+  "type": "object",
+  "required": [
+    "annotation_id",
+    "document_id",
+    "type",
+    "value",
+    "evidence",
+    "method"
+  ],
+  "properties": {
+    "annotation_id": {
+      "type": "string"
+    },
+    "document_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "value": {},
+    "evidence": {
+      "type": "array",
+      "items": {}
+    },
+    "method": {
+      "type": "string"
+    }
+  }
+}

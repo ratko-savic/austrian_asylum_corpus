@@ -1,0 +1,556 @@
+# Finer segmentation of the BVwG decisions (stage 05 fine): the parts below the sections of bvwg_headings.yaml and the
+# points of the operative part. Code: src/asylum_corpus/segmentation/ (labels.py reads the outline labels; the finer
+# segmentation applies this file). The hierarchy rules and templates of the sections: subsections.py, templates.py.
+#
+# Below the sections, every heading-like paragraph of the court's own text opens a part, nested by its outline label;
+# the operative part is divided at its labels (A), B), I., 1.). The keys:
+#   heading_like      which paragraphs are heading-like: short, a title that is no sentence, table row, source line,
+#                     quoted provision or list item
+#   nesting           where a part goes among the parts open before it, by its label
+#   operative         how the labels of the operative part are read: "A)" / "B)" are operative_part_a / _b, every other
+#                     label an operative_point
+#   scope             the procedural history gets no parts
+#   quotes            which headings are the court's own and which belong to quoted material (country reports,
+#                     provisions, case law, hearing records); quoted material is not segmented and stays inside the
+#                     court's part it lies in
+#   point_assessment  a part whose title names a numbered point of an operative part
+#   topic_*, topics   the topic of a part, from its title
+
+# ---- heading-like paragraphs
+# A paragraph is heading-like when
+#   - it has at most `max_chars` characters and a title (the text after the label) that begins with a capital letter, a
+#     quotation mark or a bracket and has at least 3 letters (a title beginning in lower case is an item of a quoted
+#     provision: "1. einem Fremden, dem ...", "dieser nicht straffällig geworden ist"; `title_start_labelled` names the
+#     lower-case starts of labelled headings);
+#   - the title does not end with ",", ";" or "?", and not with "." when it has more than `max_words_sentence` words (a
+#     sentence); these checks look past closing quotation marks ("... stammt;“" ends with ";");
+#   - without a label: at most `max_words_unlabelled` words and `max_chars_unlabelled` characters, no final "." (a
+#     country report's "Sicherheitslage", "Quellen:"), and none of the `exclude_unlabelled` patterns (sentences and
+#     fragments that a label would otherwise vouch for);
+#   - none of the `exclude` patterns occurs, and the title matches none of the `exclude_title` patterns;
+#   - the title is not one of `not_parts` (whole title, case-insensitive).
+# The `long_*` keys and `zu_period` let some forms be longer or end with "."; `unlabelled_form` says which unlabelled
+# heading-like paragraphs are parts. A letter with a dot directly before a number ("A.1.1.") is read as a label.
+heading_like:
+  max_chars: 100
+  max_words_sentence: 8
+  max_words_unlabelled: 7
+  max_chars_unlabelled: 70
+  exclude:
+    - pattern: 'https?://|www\.'
+      reason: "a source reference (country report sources, links)"
+    - pattern: '\(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}\)|\((?:\d{1,2}\.\s?)?(?:jänner|januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)?\s?(?:19|20)\d{2}\)\s*[:,]'
+      reason: "a dated source line ('BAMF - Bundesamt für Migration und Flüchtlinge (8.1.2019): ...')"
+    - pattern: '\b(?:Zl|GZ|Zahl)\.?\s?\d|\b\d{2,4}/\d{2}/\d{4}\b|\bRa \d{4}/'
+      reason: "a file or case number line"
+    - pattern: '^\s*(?:[-–•*]|vgl\.|siehe\b|s\.\s)'
+      reason: "a list item or a reference"
+    - pattern: '^\s*(?:§|Art\.|Artikel\s\d)'
+      reason: "a provision quoted or cited at the start of the line"
+    - pattern: '^\s*XXXX\b'
+      reason: "an anonymised name at the start (parties, addresses), not a heading"
+    - pattern: '^\s*[IVX]+-'
+      reason: "a fragment of a broken line ('III-VO:' from 'Dublin III-VO')"
+  exclude_unlabelled:
+    - pattern: '^(?!(?i:zu[mr]?|ad)\s).*?(?:\b\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}\b|(?<!AsylG )(?<!Asylgesetz )(?<!FPG )(?<!BFA-VG )(?<!VwGVG )(?<!/)\b(?:19|20)\d{2}\b(?!/))'
+      reason: "a date or a year: a sentence or a source line ('Am 8.9.2016 suspendierte ...', 'Länderinformationsblatt - Türkei 2015'); not the year of an act ('Asylgesetz 2005:', 'AsylG 2005'), a number range or an act's number ('2011/2012', '604/2013'), nor a court's 'Zu …' / 'Ad …' heading"
+    - pattern: '^(?!(?i:zu|ad)\s+(?i:spruch(?:punkt|teil)\w*\s+)?(?:[A-Z]\)\s*)?[IVX]+\.?\)?:\s)(?:.*\S[:;]\s+\S|.*;)'
+      reason: "a colon or semicolon inside the line: a table cell or an enumeration ('Unterstützungsleistungen: 600 Tage ...'); not the colon after the point of a 'Zu …' heading ('Zu Spruchpunkt I.: Asyl gemäß § 3 AsylG - Abweisung der Beschwerden')"
+    - pattern: '^(?:Auch|Und|Oder|Aber|Dass|Daß|Weil|Wenn|Denn|Sowie|Somit|Daher|Demnach|Jedoch|Allerdings|Zudem|Ferner|Außerdem|Insbesondere|Dies|Es|Er|Sie|Ich|Wir|Am|Mit|Laut|Seit|Hinsichtlich|Begründend|Weiters|Nunmehr|Diesbezüglich)\b'
+      reason: "a word that begins sentences, not headings ('Auch', 'Mit einer Gesetzesänderung ...', 'Begründend wurde ... ausgeführt:')"
+    - pattern: '\||\(\d[\d.,]*\)'
+      reason: "a table row ('Gewalt gegen Einzelpersonen | 31', 'Afghanistan (15,291)')"
+    - pattern: '(?:^|\s)[a-zäöüß][\w-]*\s*:?\s*$'
+      reason: "the last word in lower case: a sentence or a fragment ('Außerlandesbringung anzuordnen, wenn', 'Vorfälle im Irak hervor:'); German headings end on a noun or a name"
+    - pattern: '(?i)^(?!zu[mr]?\b).*(?:\bfolgende[nrs]?\b|\bwie folgt\b)'
+      reason: "a lead-in to a list or a quotation ('Dem Antrag beigelegt waren folgende Unterlagen:', 'Aus dieser Rechtsprechung ergeben sich folgende Judikaturlinien:'); a labelled one stays (the court's numbered '1.2. Zur Situation im Herkunftsstaat wird Folgendes festgestellt:'), and so does one beginning 'Zu'"
+    - pattern: '(?<![\w.,/-])(?<!AsylG )(?<!Asylgesetz )(?<!FPG )(?<!BFA-VG )(?<!VwGVG )(?<!AVG )(?<!Art\. )(?<!Art )(?<!Artikel )(?<!§ )(?<!§)(?<!Abs\. )(?<!Abs )(?<!Modul )(?<!Moduls )(?<!Kapitel )(?<!Z )(?<!Nr\. )(?<!Ad )(?<!Zu )(?<!BF )(?<!BF)(?<!bis )(?<!OZ )(?<!AS )\d+(?:[.,]\d+)*(?![\w/-])'
+      reason: "a number on its own: a table row or cell without separators ('Insgesamt 771', 'Kabul - Mazar AFN 600', 'Freiheitsstrafe 2 Monate'); not the number of a provision, chapter or module ('Art. 8 EMRK', 'Moduls 1'), a point referred to ('Ad 1.1.1 Identität', 'Zu 1.5.5.'), an appellant ('Zur Person des BF 5:'), an act's year or number ('Asylgesetz 2005:', '604/2013') or a range ('2011/2012')"
+    - pattern: '^\(.*\)\s*:?$|\s[-–]$'
+      reason: "a line wholly in brackets ('(Eurostat 3.3.2016a)') or ending with a dash ('Analyse der Staatendokumentation - Russische Föderation -'): a source note or a broken line"
+    - pattern: '\s(?i:of|the|and)\s*:?$|\b(?:E-?[Mm]ail|Tel\.|Fax)\b|\b(?!(?:inkl|bzw|ggf|evtl|vgl|sog|usw|etc)\.)\w{4,}\.\s+[A-ZÄÖÜ][a-zäöüß]{2,}'
+      reason: "a broken English source line ('DEVELOPMENT OF'), a contact line ('…, Geschäftsführende Direktorin, Email:'), two sentences in one line ('Entscheider-Workshop Somalia. Vortrag beim BAMF')"
+    - pattern: '^(?!(?i:zu[mr]?|ad)\b).*\b(?:ist|sind|war|waren|wurde|wurden|wird|werden|hat|haben|hatte|hatten|ergibt|ergeben|liefern|liefert|umfasst|umfassen|bedeutet|kann|können|konnte|lautet|lauten|gibt|gab)\b'
+      reason: "an unlabelled line with a finite verb is a sentence ('Daraus ergibt sich in der Sache:', 'Einige Indizien hierfür liefern offizielle, belastbare Statistiken:'); not a court's 'Zu …' heading ('Zur Frage, ob … droht')"
+    - pattern: '^(?:VR|RI|R|BF\d*|RV|DO|D|P|AW|VP|LA|SV|ZE|Ri|Dol)(?:\s+(?:an|zu)\s+\S+)*\s*:'
+      reason: "a speaker line of a hearing record ('VR an BF1 an BF2:')"
+    - pattern: '^\(.*\)\s*\.$'
+      reason: "a line wholly in brackets ending with '.': the end of a sentence broken at a line ('(Spruchpunkt III).')"
+  strip:
+    - pattern: '\s+[-–]\s+Letzte Änderung:?\s*\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}\s*$'
+      reason: "the update note of a country report chapter ('Sicherheitslage - Letzte Änderung: 16.09.2021'), no part of its title"
+    - pattern: '^[„"“»]\s*(?=(?:[IVX]{1,4}|\d{1,2})(?:\.|\s+[A-ZÄÖÜ]))'
+      reason: "a quotation mark before the label of a quoted heading ('\"2. Politische Lage', '\"4. Abschnitt'): the label counts"
+  # `title`: the court's point headings and other forms that may be longer than `max_chars`; `not`: a finite verb makes
+  # the title a sentence; `always`: forms that count even with a finite verb - a point named in brackets, "... wird
+  # Folgendes festgestellt:", a "Zu ..." heading on the situation ending with ":", a numbered introduction of a quoted
+  # source ("1.1.1. Aus dem ... Länderinformationsblatt ... ergibt sich wie folgt:", "1.4.2. Auszüge aus dem
+  # Themenbericht ...:") or of a quoted provision ("3.3.1. Der mit „…“ betitelte § 17 BFA-VG, idgF, lautet wie folgt:")
+  long_labelled:
+    title: '^(?:zu[mr]?|ad|betreffend|bezüglich|hinsichtlich|abweisung|stattgabe|stattgebung|zurückweisung|behebung|aufhebung|nichtzuerkennung|zuerkennung|nichterteilung|erteilung|erlassung|auszug aus|spruchpunkt|spruchteil)\b|\(spruch(?:punkt|teil)'
+    not: '\b(?:liegt|liegen|wurde|wurden|ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|ergibt|ergeben|steht|stehen|gelangte|gelangt|erstattete|ergab|ergaben|führte|gab|schließt|schließen|führt|führen|brachte|brachten|berief|beriefen|tritt|treten|verfügt|verfügen|legte|legten|stellte|stellten|gilt|gelten|besteht|bestehen|erschien|erschienen|kann|können|konnte|konnten|muss|müssen|bleibt|befindet|leidet|lebt|lebte|besucht|zeigt|fällt|erfolgte|entzieht|besuchte|verwies|geht|gibt|gehört|weist|verfügte|äußerte)\b'
+    max_chars: 400
+    always: '\(spruch(?:punkt|teil)|wird folgendes festgestellt:?$|^zu[mr]?\s.{0,60}\b(?:lage|situation)\b.*:$|^(?:aus|dem|der|den)\s.{0,200}(?:länderinformation|\blib\b|bericht|richtlinie|anfragebeantwortung|leitfaden|gutachten|country|euaa|easo|unhcr|accord|staatendokumentation).*(?:ergibt sich|ist zu entnehmen|lässt sich|geht hervor)\b[^.]*:$|^ausz(?:ug|üge)\s+aus\b.*:$|\b(?:lautet|lauten|normiert|bestimmt|bestimmen)(?:\s+(?:auszugsweise|wie folgt|\(auszugsweise\)))?\s*:$'
+    reason: "the court's point headings name the point and the authority's decision and run longer than 100 characters ('3.2. Zur Abweisung der Beschwerde hinsichtlich ... (Spruchpunkt I. des angefochtenen Bescheides):')"
+  long_unlabelled:
+    title: '^(?:zu[mr]?|ad)\b.*:$|spruch(?:punkt|teil)e?n?\b.*:$'
+    max_words: 15
+    max_chars: 120
+    reason: "an unlabelled 'Zu ...:' heading or one naming Spruch points may have more words ('Zu den Spruchpunkten III., IV. und V. des angefochtenen Bescheides:')"
+  # the start of a labelled title: a capital letter, a quotation mark, a bracket, "§" ("1.3. § 13 BFA-VG lautet:"), or a
+  # lower-case start of a heading ("1.1. zur Person ...", "4. rechtlich:", "II. bis VI. Zuerkennung ...", "a)
+  # persönliche Verhältnisse:", "2. bei Rückkehr:") - not the items of a quoted provision ("a) wenn der Antragsteller:",
+  # "1. nach ihrem Bildungsinhalt in:")
+  title_start_labelled: '(?:[A-ZÄÖÜ„"“(§]|zu[mr]?\s|bis\s+[IVX]+\.\s|[a-zäöü]+:$|(?:hinsichtlich|betreffend|bezüglich|persönliche\w*|aktuelle\w*|rechtliche\w*|allgemeine\w*|bei|vor)\s[^:]{0,80}:$)'
+  exclude_title:
+    - pattern: '^(?!(?i:zu[mr]?|ad|feststellungen|zusammenfassung)\b)(?!(?i:aus|dem|der|den)\s.{0,200}(?i:länderinformation|\blib\b|bericht|richtlinie|anfragebeantwortung|leitfaden|gutachten|country|euaa|easo|unhcr|accord|staatendokumentation).*(?:ergibt sich|ist zu entnehmen|lässt sich|geht hervor)\b[^.]*:$).*\b(?:übermittelten|übermittelte|legten|legte|brachte|brachten|bedeutet|ergibt|ergeben|ergaben|wurde|wurden|richtet|erhob|erhoben|langte|stellte|stellten|verurteilt|ist|sind|gab|geben|erkennen|verwickelte)\b'
+      reason: "a labelled sentence with a finite verb ('I.4. In weiterer Folge übermittelten die Beschwerdeführer folgende Unterlagen:', '3.2.2. Für den gegenständlichen Fall bedeutet dies Folgendes:'); not the court's 'Zu …' headings or a numbered introduction of a quoted source"
+    - pattern: '\((?:AS|OZ|ON)\s?\d'
+      reason: "an item of the court's list of evidence with its file reference ('a) Personalausweis (AS 27; 45)')"
+    - pattern: '^zu[mr]?\s+(?:\S+\s+){8,}'
+      reason: "a lower-case title beginning 'zu …' is a heading only when short ('1.1. zur Person des Beschwerdeführers'); a long one is an item of a quoted provision ('2. zur Gewährleistung der Strafverfolgung …')"
+    - pattern: '^(?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(?:19|20)\d{2}\b'
+      reason: "a date broken over a line ('29. Juni 2015 ein (Freiheitsstrafe von einem Jahr)')"
+    - pattern: '\s\|\s'
+      reason: "a table row read with a number as label ('28 Jan. 2020 | Protests | …')"
+    - pattern: '^(?:ACC|BMA)\s?\d+'
+      reason: "a MedCOI form's page header or reference ('3. ACC 8066')"
+    - pattern: '^(?:Der|Die|Das|Es|Er|Sie|Am|Im|Mit|Dem|Den|Ein|Eine|Gegen|In|Diese[rs]?|Dies|Ich|Wir|Mein|Meine|Nein|Ja)\b.*\.$'
+      reason: "a numbered sentence ('4. Der BF ist gesund und arbeitsfähig.', '3.5. Es war daher spruchgemäß zu entscheiden.') or an interview answer ('A. Ich kann mich gut verständigen.')"
+    - pattern: '^(?!(?i:zu[mr]?|ad)\b).*\b(?:führte|führten|ging|gingen|hätte|hätten|könne|könnten|würde|würden|droht|drohen|bleibt|traf|trafen|nahm|nahmen|wies|befand|teilte|ersuchte|beantragte|beantragten|vermochte|vermochten)\b'
+      reason: "a labelled sentence with one of these finite verbs ('2.7. Verfahrensgegenständlich hätten die vorgelegten Beweismittel …:', 'I.12.2. Das ho. Gericht ging von nachfolgenden Feststellungen aus:'); not a court's 'Zu …' heading"
+    - pattern: '^(?:Der|Die|Das|Dem|Den)\s+(?:\S+\s+){0,6}?(?:wird|werden)\b'
+      reason: "an operative sentence ('A) Der Beschwerde wird hinsichtlich Spruchpunkt I. gemäß § 28 Abs. 2') where RIS gives the operative part inside the reasoning"
+    - pattern: '\s(?:und|oder|sowie|bzw\.?|des|der|dem|den|eines|einer|einem|im|zur|zum|von|vom|mit|für|auf|bei|nach|gemäß|gegen)\s*$'
+      reason: "a title ending on a conjunction, an article or a preposition: a line broken inside a sentence or a list item ('7. Verstöße gegen die öffentliche Ordnung, insbesondere im Bereich des Asyl-, Fremdenpolizei- und', 'b) Folter … im Herkunftsland oder')"
+    - pattern: '^(?i:zu)\s+(?!(?:den|dem|der|des|die|das|einer?|eine[ms]?|seine[mnrs]?|ihre[mnrs]?|deren|dessen|allen?|beiden|diese[mnrs]?|folgende[mnrs]?|obigen?|spruchpunkt\w*|spruchteil\w*)\b)[a-zäöüß]'
+      reason: "'Zu' before a verb or an adjective is a sentence, not a 'Zu …' heading ('3.6.2. Zu prüfen bleibt, ob …')"
+    - pattern: '^(?!(?i:zu[mr]?|ad|ausz(?:ug|üge))\b).*\b(?:hält|halten|hielt|hielten)\b'
+      reason: "a labelled lead-in sentence with 'hält … fest' ('2.3.2. Ergänzend zur obigen Beweiswürdigung der belangten Behörde hält das Bundesverwaltungsgerichtes folgendes fest:'); not a court's 'Zu …' heading or 'Auszug aus …' introduction"
+    - pattern: '^(?!(?i:zu[mr]?|ad|ausz(?:ug|üge))\b).*\b(?:finden|findet|fand|fanden)\b'
+      reason: "a labelled lead-in sentence with 'finden … Anwendung' ('2. Auf den gegenständlichen Sachverhalt finden diese allgemeinen Erwägungen Anwendung wie folgt:'); not a court's 'Zu …' heading or 'Auszug aus …' introduction"
+  continuation:
+    pattern: '(?:,|\s[-–]|\(\d{1,2}\.\s?(?:\d{1,2}\.\s?)?\d{2,4}\)\s*:)$'
+    reason: "the paragraph before ends with a comma, a dash or a dated source opening ('IOM ... (8.2012):'): this line continues it ('Länderinformationsblatt Armenien')"
+  # substitutions before a paragraph is read
+  normalize:
+    - pattern: '^(\d{1,2}) \.(?=\s)'
+      replace: '\1.'
+      reason: "a space before the dot of the label ('2 . Beweiswürdigung:')"
+    - pattern: '^XXXX\s+(?=\d{1,2}\.(?:\d{1,2}\.)*\s+Zu[mr]?\s)'
+      replace: ''
+      reason: "the anonymised end of a list run into the next heading's line ('XXXX 2.1. Zum Verfahrensgang:')"
+    - pattern: '^([IVX]{1,4})\.\)'
+      replace: '\1.'
+      reason: "a roman numeral with dot and bracket ('I.)', 'II.)' heading the parts on the points)"
+    - pattern: '^(\d{1,2})\)\s+(?=(?:Rechtliche Beurteilung|Beweiswürdigung|Feststellungen|Verfahrensgang|Sachverhalt|Erwägungen)\b)'
+      replace: '\1. '
+      reason: "a main heading numbered with a bracket ('3) Rechtliche Beurteilung:')"
+    - pattern: '^Artikel\s+([IVX]{1,4}\.)\s+(?=\1\s)'
+      replace: ''
+      reason: "a word processor's outline prefix ('Artikel II. II. Das Bundesverwaltungsgericht hat erwogen:')"
+    - pattern: '^\?\s+(?=Zu[mr]?\s)'
+      replace: ''
+      reason: "a stray '?' before a heading ('? Zu A) Verfahrenseinstellungen:')"
+    - pattern: '^[-–]\s+(?=Zu[mr]?\s)'
+      replace: ''
+      reason: "a dash before the court's 'Zu …' heading ('- Zur ersatzlosen Behebung von Spruchpunkt I. der angefochtenen Bescheide (…):'): no list item"
+    - pattern: '^(\d{1,3}[a-z]?)\s+(?=(?:AsylG|FPG|BFA-VG|VwGVG|AVG|NAG|GVG-B|B-VG|VwGG)\b)'
+      replace: '§ \1 '
+      reason: "a provision's number whose '§' is missing ('8 AsylG lautet auszugsweise:'): no label"
+    - pattern: '^((?:[IVX]{1,4}|\d{1,2})\.(?:\d{1,2}\.)*\s+(?:Rechtliche Beurteilung|Beweiswürdigung|Feststellungen|Verfahrensgang|Sachverhalt));$'
+      replace: '\1:'
+      reason: "a main heading ending with ';' instead of ':' ('3. Rechtliche Beurteilung;'); only these words, so a list item ('1. Caritas Armenien;') stays one"
+  # a labelled title up to `max_chars`, or an unlabelled one up to `max_words` / `max_chars_unlabelled`, counts when the
+  # next paragraph has at least `following_min_chars` characters (a heading before its text)
+  long_generic:
+    not_start: '(?:Der|Die|Das|Dem|Den|Des|Ein|Eine|Einer|Eines|Es|Er|Sie|Wir|Bei|Wiewohl|Selbst|Auch|Mit|In|Im|Am|Auf|Aus|Nach|Da|Dass|Daher|Somit|Zudem|Wie|Wenn|Weil|Gemäß|Laut|Hinsichtlich|Diese[rsmn]?|Dies|Dazu|Darüber|Insgesamt|Traditionell|Was|Wer|Wann|Wo|Warum|Welche[rsmn]?)\b'
+    not: '\b(?:siehe|dass|ob|weil|wenn|ist|sind|war|waren|wurde|wurden|wird|werden|hat|haben|hatte|hatten|kann|können|konnte|konnten|muss|müssen|soll|sollen|ergibt|ergeben|ergab|steht|stehen|stand|liegt|liegen|lag|gibt|gab|lautet|lauten|bedeutet|bedeuten|umfasst|umfassen|liefern|liefert|stellte|stellten|brachte|brachten|legte|legten|erhob|erhoben|reiste|reisten|lebt|leben|lebte|befindet|befinden|richtet|übermittelte|übermittelten|droht|drohen|gilt|gelten|gelangte|gelangt|erstattete|führte|führt|schließt|verfügt|berief|tritt|besteht|erschien|bleibt|weist|gehört|verfügte)\b'
+    following_min_chars: 150
+    max_chars: 250
+    max_words: 14
+    max_chars_unlabelled: 100
+    reason: "a heading without a finite verb or subordinate clause, not beginning like a sentence ('Die …', 'Bei …') and without a final '.', followed by its text, may be longer ('Verfahren zur Prüfung eines Antrags auf internationalen Schutz', 'II.1.4. Sonstige Verstöße gegen die öffentliche Ordnung, insbesondere ...')"
+  table_run:
+    min_run: 3
+    max_chars: 70
+    min_numbers: 2
+    following_min_chars: 150
+    not_member: 'Letzte Änderung'
+    numbers: '(?<![\w.,/-])(?<!Art\. )(?<!Art )(?<!Artikel )(?<!§ )(?<!Kapitel )\d+(?:[.,]\d+)*(?![\w/-])'
+    reason: "three or more short lines in a row without a list marker or a final '.' / ':', at least two of them with a number, are the cells of a table the source gives without separators ('Distrikt Kabul', 'Provinz Kabul', 'Strecke Preis'); the last line of the run can still be a heading where a long paragraph follows; stacked headings ('KAPITEL IV', its title, 'Art. 16') have no such numbers"
+  # An unlabelled heading-like paragraph is a part only in the court's forms "Zu …", "Ad …", "Auszug aus …" (this
+  # pattern) or naming a point (point_assessment). The other unlabelled headings are mostly quoted (a report's
+  # "Politische Lage", "Quellen:", a provision's "Status des Asylberechtigten"), and the court's own ones ("Entfall der
+  # mündlichen Verhandlung") cannot be told from them by rules ("Anzuwendendes Recht" is also the title of § 17 VwGVG).
+  unlabelled_form: '(?i:zu[mr]?\s|ad\s|ausz(?:ug|üge)\s+aus\b)'
+  # A paragraph that is only a roman numeral or a capital letter ("I.)", "II.", "A)") before a paragraph of at least
+  # `following_min_chars` characters heads that text - not in the sections `not_in` (a reasoning without sections), and
+  # not before a ruling (`not_before`): joined decisions whose further rulings RIS gives in the reasoning ("A)" | "I.
+  # Der Beschwerde wird stattgegeben …", "B)" | "Die Revision ist …").
+  bare_labels:
+    kinds: ['R', 'A']
+    following_min_chars: 30
+    not_in: [reasoning, other]
+    not_before: '(?:[IVX]+\.\s+)?(?:Der|Die|Dem|Den|In Erledigung)\s+(?:Beschwerden?|Revision|Anträgen?|Antrag|Verfahren|der Beschwerde)\b'
+  # A labelled heading broken at a line before its point is one heading, the next line's title joined to it ("A) 3.2.3.
+  # Zur Nichterteilung eines Aufenthaltstitels nach § 57" | "Asylgesetz 2005 (Spruchpunkt III des angefochtenen
+  # Bescheides, erster Spruchteil):"), also where the point is on the next line wholly in brackets ("… Frist für die
+  # freiwillige Ausreise" | "(Spruchpunkt VI des angefochtenen Bescheides):").
+  #
+  # Unlabelled headings of the court's forms that may be longer than the unlabelled limits and hold a date or a number
+  # (`exclude_unlabelled` does not apply; `exclude` does, and a final "." makes a sentence):
+  long_forms:
+    - title: '(?i:ausz(?:ug|üge))\s+aus\b.*:$'
+      max_chars: 250
+      reason: "the court's introduction of a quoted report ('Auszug aus dem Länderinformationsblatt der Staatendokumentation vom 17.07.2023 …:'), which its date or length would otherwise keep from being heading-like"
+    - title: '(?:Zu|Ad)\s+(?:Spruch(?:teil|punkt)\s+)?[A-D]\)(?:\s|$)'
+      max_chars: 250
+      reason: "the court's heading of its ruling A) / B) with a long title or without a colon ('Ad A) Nichtzuerkennung des Status als asylberechtigte Person', 'Zu A) Abweisung der Beschwerde und Feststellung, dass die Anordnung zur Außerlandesbringung … rechtmäßig war')"
+  # The court's "Zu …" headings in lower case ("zur Person der Beschwerdeführerin", "zur Beschwerde gegen Spruchpunkt I.
+  # des angefochtenen Bescheids:") are read with a capital "Z" where the line before ends a sentence or is short
+  # (`previous`) - not an entry of a criminal record ("zu LG XXXX RK …"), an anonymised name or a lettered charge ("zu
+  # A) das Vergehen …") (`not`).
+  lower_zu:
+    pattern: '^zu[mr]?\s+(?:den|dem|der|die|des|einer?|eines|spruch\w*|[A-ZÄÖÜ])'
+    not: '^zu[mr]?\s+(?:LG|BG|LGS|XXXX|[A-Z]\)\s+[a-zäöü])'
+    previous: '(?:[.:!?)“”"]|^[^,]{0,60})$'
+  # A labelled paragraph introducing the country reports (quotes.part_intro) is a part even where it is too long or too
+  # much a sentence for a heading ("1.3. Unter Bezugnahme auf das Länderinformationsblatt … werden auszugsweise folgende
+  # … Feststellungen zur Lage in Syrien getroffen:").
+  #
+  # A heading-like paragraph right after a heading with the same text (letters and digits, without "Zu", "Spruchteil",
+  # "Spruchpunkt") is the heading printed twice and opens no part ("3. Rechtliche Beurteilung:" twice, "Zu A)" | "Zu
+  # Spruchteil A):").
+  #
+  # An unlabelled point heading may be longer and lack the colon ("Zu Spruchpunkt I des angefochtenen Bescheides
+  # (Nichtzuerkennung des Status eines Asylberechtigten gemäß § 3 AsylG 2005)"), and end with "." when it has at most
+  # `max_words_sentence` words ("Zu Spruchpunkt II.").
+  long_point:
+    title: '(?:zu[mr]?\s|spruch(?:punkt|teil))'   # a "Zu …" title naming a point, or one beginning with "Spruchpunkt"
+    not: '\b(?:ist|sind|war|waren|wurde|wurden|wird|werden|hat|haben|hatte|hatten|ergibt|ergeben|lautet|lauten|gibt|gab|erfolgte|entzieht|kann|können|bleibt|führt|steht)\b'
+    max_words: 22
+    max_chars: 170
+  # a "Zu …" heading may end with "." when it has none of these words ("2.2.2.3. Zur westlichen Orientierung der
+  # weiblichen BF, insbesondere der BF2.")
+  zu_period: '\b(?:ist|sind|war|waren|wurde|wurden|wird|werden|hat|haben|hatte|hatten|ergibt|ergeben|ergab|kann|können|konnte|lautet|lauten|gibt|gab|bleibt|gelangte|erstattete|führte|steht|stehen|liegt|liegen|folgt|siehe|festzustellen|auszuführen|festgestellt|ausgeführt)\b'
+  exclude_label_kinds: ['(#)']   # "(2) Liegt nur die Voraussetzung ... vor": items of quoted provisions, not headings
+  # titles that are no parts: the title of the reasoning, an empty note marker
+  not_parts:
+    - '(?:wesentliche )?(?:entscheidungsgründe|begründung)'
+    - 'anmerkung(?:en)?'
+
+# ---- nesting
+# A part is nested by its label within the text of its section: a larger last number is a sibling ("1.3." after "1.2."),
+# one more number starting at the first a child ("1.1." under "1."); an unlabelled heading is a child of the innermost
+# labelled part, and consecutive unlabelled headings are siblings. A section without a label takes the label of the
+# nearest labelled section above it. A label that continues nothing open goes where its numbers say, tested in this
+# order: beside the part before a parent number that is not printed ("2.3.1." after "2.2."), under the part it extends
+# ("3.5." under "3." while "3.3." and "3.4." are numbered sentences), beside the innermost part it repeats with one
+# number off by one (a misprint: "1.2.2." after "1.3.1."); otherwise it is the sibling of an open unmatched part of the
+# same shape, else a child of the innermost open part. A numbered part beginning a sequence right after a point heading
+# or a label alone ("A)") goes under it; consecutive "Auszug aus …" introductions are siblings.
+nesting:
+  # a label of these kinds identical to an open one opens the next part at that level ("2.2." printed twice); a
+  # repeated letter opens nothing (the "F." / "A." of an interview record)
+  repeat_kinds: ['#', 'R']
+  # A numbered paragraph of these kinds that is no heading, begins with a capital letter and continues an open labelled
+  # sequence ends the parts below it ("3.1. Die Beschwerde ist zulässig." before "3.2."), unless it ends like a list
+  # item ("7. Verstöße gegen die öffentliche Ordnung, …,"), follows a line broken inside a sentence, is a source line or
+  # a question. One continuing the section's own number ends the parts only as its next number ("2." in "1.
+  # Feststellungen", not "11.") and where it ends like a sentence.
+  closer_kinds: ['#', 'R']
+  # An unlabelled heading after a labelled point part goes beside it where it names other points ("Zu Spruchpunkt VII.
+  # der angefochtenen Bescheide:" after "3.3. … Spruchpunkte III., IV, V") or has one of these topics ("Zum Entfall der
+  # mündlichen Verhandlung:" after "3.6. Zu Spruchpunkt VI."); a heading on a point it covers, on another question or
+  # right after the point heading stays its child.
+  beside_topics: [oral_hearing]
+  # A main heading of the court that the heading rules missed - a part whose label continues the number of the section
+  # it lies in by one, with a main heading's or the court's title (quotes.main_title, quotes.court_title) or naming a
+  # point - goes beside
+  # that section, which then ends before it ("4. Zum Unterbleiben einer mündlichen Verhandlung:" beside "3. Rechtliche
+  # Beurteilung", "2. Beweisaufnahme:" beside "1. Verfahrensgang:"). Where a further section begins after it inside that
+  # section ("Zu B)" after "4."), it goes beside the section it lies in ("Zu A)") instead.
+  #
+  # The court's heading for a ruling ("Zu A)", "Zu Spruchteil A):", "Zu Spruchpunkt I. A)", "Ad B)"; this pattern) or
+  # for a point (an unlabelled point_assessment) takes in the numbered parts after it, also where their numbers continue
+  # the outline around it, up to the next such heading, "Zu B)" or a main heading ending the part around it; a heading
+  # on other points still goes beside a point heading. A "Zu A)" section keeps a part continuing its own number or right
+  # after it, unless that part is on the revision, a ruling or other points.
+  takes_in: '^(?:zu|ad)\s+(?:spruch(?:punkt|teil)\w*\s+)?(?-i:(?:[IVX]+\.?\s?)?[A-D])\s?\)'
+  # sections whose bare heading ("Zu B)") is followed by its subtitle: an unlabelled heading directly after it opens no
+  # part ("Zu B)" | "Unzulässigkeit der Revision:"), unless it names a point or begins with "Zu"
+  subtitle_after: [revision_admissibility, ruling_a]
+
+# ---- operative part
+# Every labelled paragraph of an operative part opens a section; labels of different kinds in one line are nested
+# ("A) I. Die Beschwerde …"). "I)" / "II)" are roman numerals, and so is "II." alone on its line. An "A)" after an open
+# "A)" … "B)" at the top starts the next ruling (joined decisions); a "B)" with no "A)" open goes to the top, not under
+# the last point. A label alone at the end of an operative stretch opens nothing (its text lies in the next section),
+# and the labels of quoted new wording ("… zu lauten hat: „I. … II. …“") are no points. A roman point printed again in
+# a paragraph of its own is the next point (a misprint), but not a number repeated with a letter ("1. A) …" | "1. B)
+# …").
+operative:
+  # a title after which an operative label is no point ("1. Satz, 2. Fall …": a broken line)
+  not_point: '(?:Satz|Fall|Halbsatz|Abs\.?|Z)\b'
+  # in an operative part without any label, the sentence on the revision is its operative_part_b
+  revision_b: '\s*Die (?:ordentliche )?Revision (?:ist|wird) .{0,120}(?:zulässig|zugelassen)'
+  # with letters beyond B) ("A) … B) … C) Die Revision …"), the letter whose text (or next line) is the sentence on the
+  # revision is operative_part_b, every other letter operative_part_a (a ruling on the matter)
+  letters_by_revision: '\s*Die (?:ordentliche |außerordentliche )?Revision (?:ist|wird|gegen)'
+  # substitutions before an operative label is read
+  normalize:
+    - pattern: '^((?:[A-Z]\)\s+)?)l([.)])\s'
+      replace: '\1I\2 '
+      reason: "a lower-case 'l' for the roman 'I' ('l) Die Beschwerde wird …' before 'II. …')"
+    - pattern: '^((?:[A-Z]\)\s+)?)l\.\)(?=\s)'
+      replace: '\1I.'
+      reason: "'l.)' (a lower-case L) for 'I.)' ('l.) Nach Zurückziehung der Beschwerde zu den Spruchpunkten l., II. …' before 'II.)')"
+    - pattern: '^([IVX]{1,4})\.\)(?=\s|$)'
+      replace: '\1.'
+      reason: "a roman numeral with dot and bracket ('I.) Die Beschwerden werden … abgewiesen.' | 'II.) Die Revision ist …'), otherwise 'I.)' is read as the letter I and 'II.)' as no label"
+  # A label whose title begins like the rest of a sentence (`title`: an article or "bis") after a paragraph that does
+  # not end like a sentence (`previous`) is no point: a sentence broken at a line before the enumeration of the parties
+  # ("… 4.) der mj. XXXX und" | "5.) der mj. XXXX , gemäß § 3 Abs. 1 …") or before a point it names ("… Spruchpunkte"
+  # | "II. bis VII. des angefochtenen Bescheides behoben.").
+  broken_line:
+    title: '(?:der|dem|des|den|die|bis)\s'
+    previous: '[.:;!?)]\s*$'
+  # an operative part or point whose text (or next line, after a label alone) is the revision ruling is
+  # operative_part_b, whatever its label ("C) Die Revisionen sind … nicht zulässig", "II.) Die Revision ist …"); not a
+  # label inside a B)
+  revision_ruling: '(?i)\s*„?(?:die|eine)\s+(?:ordentliche\s+)?revision(?:en)?\b.{0,200}?(?:zulässig|zugelassen)|\s*gemäß\s+art\.?\s*13\d\b.{0,60}?\bist\s+die\s+(?:ordentliche\s+)?revision\b'
+
+# ---- scope
+# The procedural history gets no parts: it reports the authority's decision, the appeal, hearing records and earlier
+# decisions, whose headings and numbering cannot be told from the court's. Only a labelled heading that continues the
+# section's own label (the court's next main part that the heading rules missed: "2. Beweisaufnahme:" inside "1.
+# Verfahrensgang") is a part, and the text after it is divided as usual. A part in the sections `procedural_in` whose
+# title names the procedure (`procedural_title`: "I. Verfahrensgang, Vorbringen, Bescheid und Beschwerde") is a
+# procedural history the heading rules did not find and gets no parts below it.
+scope:
+  no_parts: [procedural_history]
+  procedural_in: [reasoning, considerations]
+  procedural_title: '(?:zu[mr]?\s+(?:dem\s+)?)?(?:verfahrensgang|gang des verfahrens|verfahrenshergang|bisherige[rns]? verfahren\w*|sachverhalt und verfahrensgang|verfahren und sachverhalt)\b'
+
+# ---- quoted material
+# Each heading-like paragraph of the reasoning is the court's or quoted, decided in document order with the court's
+# open outline. Quoted material is not divided by its own headings: it stays inside the court's part it lies in.
+#   - A quote begins with a heading beginning with a quotation mark, a quoted provision's title (a part with topic
+#     quoted_provision), in `report_sections` a heading that only a country report topic or `quoted_topics` fits, after
+#     the court's introduction (a heading matching `intro_title` or with a topic in `intro_topics`, a lead-in
+#     `lead_in`, a paragraph `paragraph_intro`), or with a paragraph beginning with a quotation mark („) that it does
+#     not close. A straight mark (") left open opens no quote: in a report it would take the court's numbers after it.
+#   - Inside a quote a heading is the court's when its label continues the court's open outline (the next number of an
+#     open part, or one more number of the innermost one: "1.4." after "1.3.", "1.3.1." under "1.3."; also the number of
+#     the heading right before it printed again: "1.5.1. Auszüge aus …:" | "1.5.1. Allgemeines:"), when it reads as the
+#     court's (`court_title`, a point) or has a topic in `court_topics`. Below the part that introduced the quote, the
+#     court's numbers on the quote's chapters ("1.3.1. Politische Lage") are parts, and the quote goes on; elsewhere the
+#     number after one of the quote's own headings continues the quote ("2.5." after a quoted "2.4.").
+#   - In `report_sections` a label lower than a number the court printed already ("1.1." or "1.2." after the court's
+#     "1.3. Zur aktuellen Lage …") is the report's own numbering: inside a quote it does not fit, outside one it opens a
+#     quote. The same number again still fits.
+#   - A quote ends before the court's next heading or at the end of the text, and, where its place in the court's
+#     outline is known, before a numbered paragraph continuing that outline with two or more numbers ("3.6.3. Die
+#     Beschwerde ist …"). One begun with a quotation mark ends with the paragraph that closes it; one not begun with a
+#     mark also before a paragraph that speaks of the parties or the case (`end`, unless `not_end`). A quote after a
+#     lead-in whose first paragraph is quoted whole ends with that paragraph.
+quotes:
+  # titles that read as the court's; not "Zusammenfassung", "Ergebnis" or "Beweis…" (a quoted query response's
+  # "Zusammenfassung:", UNHCR's "c) Zusammenfassung", the Dublin III Regulation's "a) Beweismittel:")
+  court_title: '(?:zu[mr]?|ad|auszug|auszüge|feststellung\w*|beweiswürdigung|beweisaufnahme|rechtliche\w* beurteilung|spruchpunkt\w*|spruchteil\w*|würdigung|erwägung\w*|entscheidungsgrundlage\w*)\b'
+  # the court's introduction of a quoted report ("Auszug aus …", "1.2.2. Auszug EASO-Bericht …")
+  intro_title: '^ausz(?:ug|üge)\b|länderinformation|anfragebeantwortung|richtlinien|country (?:guidance|focus|report)|länderbericht|länderfeststellungen|lagebericht|\bbericht\b|-bericht\b|\breport\b'
+  intro_topics: [country_information]
+  # the court's lead-in to quoted provisions, also as a paragraph that is no heading ("Die maßgeblichen Bestimmungen
+  # lauten:")
+  lead_in: '\b(?:lautet|lauten|normiert|bestimmt|bestimmen)(?:\s+(?:auszugsweise|wie folgt|\(auszugsweise\)))?\s*:?\s*$'
+  # the court's text after a quote speaks of the parties or the case ("2. Auf den gegenständlichen Sachverhalt finden
+  # …"); not a report's source reference ("(ÖB Moskau 12.2019; vgl. FH 4.3.2020)": a report telling of a court case)
+  end: '\b(?:BF\d*|bP|Beschwerdeführer\w*|Beschwerdeführerin\w*|Revisionswerber\w*|erkennende[nrs]? Gericht\w*|(?:im|für den) (?:gegenständlichen|vorliegenden|konkreten) Fall|[Ff]allbezogen|VwGH|(?:ständige[nr]? |höchstgerichtliche[nr]? )(?:Rechtsprechung|Judikatur)|(?:den|dem) (?:gegenständlichen|vorliegenden|konkreten) (?:Sachverhalt|Beschwerdefall|Verfahren))\b'
+  not_end: '\((?!VwGH|VfGH|EGMR|EuGH|vgl)[A-ZÄÖÜ][\w.-]*(?: [A-ZÄÖÜ][\w.-]*)* (?:\d{1,2}\.)?\d{1,2}\.\d{4}[a-z]?\b'
+  # a paragraph that is no heading and introduces the country reports opens a quote too, in `report_sections` ("Zur
+  # Situation in Afghanistan wird festgestellt:", "1.11. Zur Lage im Irak werden folgende Feststellungen getroffen:",
+  # "Es wurden folgende Länderfeststellungen getroffen:"); a number of the court's below a numbered introduction
+  # ("1.11.1.") is the court's numbering of a chapter
+  paragraph_intro: '(?:\b(?:lage|situation)\b|länderfeststellung|länderinformation|herkunftsstaat|herkunftsland|länderbericht|länderberichte).{0,160}(?:festgestellt|festzustellen|getroffen|wiedergegeben|zitiert|ausgeführt|zugrunde gelegt|herangezogen|wie folgt|folgendes|folgende[ns]?\s+\w+)\W*:\s*$|^(?:es wurden|das bundesverwaltungsgericht trifft|im folgenden werden)\b.{0,160}:\s*$'
+  # the numbered introductions that are parts (heading_like), wider: also naming a source ("1.4. Aufgrund des Country
+  # Guidance … der EUAA sind weiters folgende … Feststellungen zu treffen:") or ending "… zu treffen:". Only for parts:
+  # opening quotes with it would take the court's chapter numbers after such sentences as quoted
+  part_intro: '(?:\b(?:lage|situation)\b|country guidance|\beuaa\b|\beaso\b|\bunhcr\b|\baccord\b|anfragebeantwortung|staatendokumentation|länderfeststellung|länderinformation|herkunftsstaat|herkunftsland|länderbericht|länderberichte).{0,160}(?:festgestellt|festzustellen|getroffen|zu treffen|wiedergegeben|zitiert|ausgeführt|zugrunde gelegt|herangezogen|wie folgt|folgendes|folgende[ns]?\s+\w+)\W*:\s*$|^(?:es wurden|das bundesverwaltungsgericht trifft|im folgenden werden)\b.{0,160}:\s*$'
+  # in `report_sections` a labelled heading that continues the number of the section it lies in ("2." inside "1.
+  # Feststellungen") is a part only where it reads as the court's (`court_title`, a point) or is a main heading the
+  # heading rules missed (this pattern, also "2. Die Feststellungen gründen in der folgenden Beweiswürdigung:"); a
+  # report's "2. Religion", "3. Rückkehr" there are its own numbering
+  main_title: '(?:die feststellungen (?:gründen|beruhen|stützen) sich\b.{0,60}beweiswürdigung|die feststellungen gründen\b.{0,60}beweiswürdigung|beweisaufnahme|beweiswürdigung|rechtliche\w* beurteilung|feststellungen|erwägungen|verfahrensgang|gang des verfahrens|sachverhalt|das bundesverwaltungsgericht|entscheidungsgründe|begründung|zuständigkeit|verfahrensbestimmungen|anzuwendendes recht|rechtlich|unzulässigkeit|zulässigkeit|entfall|unterbleiben|absehen|gesetzliche\w* grundlage\w*|ergebnis|beweismittel|länderfeststellung\w*|länderbericht\w*|länderinformation\w*|strafrechtliche\w*)\b'
+  # topics that make a heading inside a quote the court's; not procedure ("Beweismittel", "Indizien" of a quoted
+  # provision)
+  court_topics: [person, flight_reasons]
+  # where report topics and introductions open quotes (in the court's assessment such headings are its own)
+  report_sections: [findings, procedural_history, procedural_history_and_findings, considerations, findings_and_evidence, reasoning]
+  # where a quote is one of provisions
+  provision_sections: [legal_assessment, legal_and_evidence, ruling_a, revision_admissibility]
+  quoted_topics: [sources]
+  reason: "RIS does not mark quoted material - reports, provisions, case law, hearing records - and its headings and numbering cannot be told reliably from the court's, so it is left unsegmented. The end pattern: quoted reports and provisions do not speak of the parties or the case; the court's text after a quote does"
+
+# ---- points
+# A part whose title names a numbered point of an operative part is a point_assessment. `point`: the first matching
+# group is the point ("A" before the numeral needs a bracket or "zu": "Tel Aviv" is no "A) VIV"); a title on several
+# points records them all ("Zu den Spruchpunkten I., II. und III." -> "I-III", "Spruchpunkte III. bis V." -> "III-V").
+# Where the title names a point in the court's form (`court`: "Spruchteil A) I.", "Spruchpunkt A.I. des vorliegenden
+# Erkenntnisses"), not followed by "des angefochtenen …", that point is recorded with the court's numbering, wherever it
+# stands in the title. Otherwise the numbering is the authority's where the title names the challenged decision
+# (`authority`: "Spruchpunkt I. des angefochtenen Bescheides"), the court's where it matches `court`, else unclear
+# ("Zu Spruchpunkt I.").
+point_assessment:
+  # in the legal part (quotes.provision_sections) "Zu" / "Ad" with a bare roman numeral names that point too ("Zu I)
+  # Abweisung der Beschwerde:", "Zu II.) Unzulässigkeit der Revision:", "Ad I.:", "Zu I. A)"); not "Zu XXXX:" or "Ad
+  # III.2. …"
+  legal: '^(?:zu|ad)\s+(?-i:((?=[IVX])X{0,3}(?:IX|IV|V?I{0,3})))(?:\.\)?|\))?(?=[\s:,]|$)'
+  point: 'spruchpunkt(?:e|en|s)?\s+(?:a\.?\s?)?([ivx]+)\b|spruchteil(?:e|en|s)?\s+(?:a\)?\s*)?([ivx]+)\b|\b(?:zu\s+a\)?|a\))\s*\.?\s?([ivx]+)\.?\s*(?:\)|:|$|\s)|\b[Aa]d\s+(?:[Aa]\)?\s*)?(?-i:([IVX]+))\.?\s*(?:\)|:|$)'
+  authority: 'bescheid|angefochten|bekämpft|des bfa|bundesamt'
+  court: 'spruchteil|\ba\)\s*[ivx]|\ba\.\s?[ivx]|spruchpunkt a\.?\s?[ivx]'
+
+# ---- topics
+# The title (quotation marks and brackets around it and a final ":" / "." removed, `topic_drop` removed, "XXXX" -> "X",
+# numbers -> "#" except after "§", so that "§ 57 AsylG" stays the residence title, spaces collapsed) must match a
+# pattern WHOLLY, case-insensitive; the first topic in this order wins. Each topic has a group:
+#   court   the court's own parts, and in the legal assessment topics named after the issues of stage 08 (the IDs
+#           differ)
+#   coi     quoted country reports (country of origin information; the Dublin states' asylum systems: coi_asylum_system)
+#   any     sources and quoted provisions
+# A part gets the first topic of group court or any, a point_assessment only one of group court (its issue, not
+# quoted_provision or sources). The coi topics, quoted_provision and sources also mark headings as quoted material
+# (quotes). A part without a matching topic has topic null.
+#
+# the authority's name "Bundesamt für Fremdenwesen und Asyl" is no sign of the asylum issue
+topic_drop: ['(?:des |dem |das )?bundesamte?s? für fremdenwesen und asyl']
+# the parts below the court's part on the country situation (its numbered chapters of a quoted report, "1.3.5.
+# Rückkehr") get no topic: they are country information, and a court topic there would be wrong
+topic_none_below: [country_information]
+topics:
+  # ---- sources and quoted provisions first (they would match broader patterns)
+  - topic: sources
+    group: any
+    title: '(?:einzel)?quellen?|quellenla[gq]e.*|quellen und .*|verwendete quellen|quellenverzeichnis'
+  - topic: quoted_provision
+    group: any
+    title: 'kapitel [ivx]+.*|artikel #.*|art\.? #.*|rangfolge der kriterien|ermessensklauseln|abhängige personen(?: und ermessensklauseln)?|kriterien zur bestimmung des zuständigen mitgliedstaats|allgemeine grundsätze und schutzgarantien|einreise und/oder aufenthalt|pflichten des zuständigen mitgliedstaate?s|(?:asylgesetz(?: #)?|fremdenpolizeigesetz(?: #)?|bfa-verfahrensgesetz|bfa-vg|fpg|asylg(?: #)?|vwgvg|avg|b-vg)|aufnahme- und wiederaufnahmeverfahren|einleitung des verfahrens|inkrafttreten und anwendbarkeit|antwort auf ein (?:wieder)?aufnahmegesuch|(?:wieder)?aufnahmegesuch|modalitäten und fristen|ausstellung von aufenthaltstiteln oder visa|verbot der abschiebung|status des asylberechtigten|status des subsidiär schutzberechtigten|erlassung einer aufenthaltsbeendenden maßnahme|aufenthaltsberechtigung besonderer schutz|die (?:hier )?maßgeblichen bestimmungen .*lauten|.*bestimmungen .* lauten|.* (?:lautet|lauten|normiert)(?: auszugsweise| wie folgt| \(auszugsweise\))?|(?:die )?maßgebliche(?:n)? bestimmung(?:en)? .*'
+  # ---- the court's own parts: findings and assessment of evidence
+  - topic: procedure
+    group: court
+    title: '(?:zu(?:m|r)? )?(?:dem )?(?:verfahrens(?:gang|hergang)|sachverhalt|bisherigen verfahren).*|beweisaufnahme|beweismittel|indizien|zur beweisaufnahme.*|zur entscheidungsgrundlage.*|entscheidungsgrundlagen|(?:der |zum )?angefochtenen? bescheid.*'
+  - topic: person
+    group: court
+    title: '(?:zu den feststellungen )?zu(?:r|m)? (?:den )?person(?:en)?\b.*|zu den beschwerdeführer\w*.*|(?:der|die) beschwerdeführer\w*|zur identität.*|zum sozialen hintergrund.*|zu (?:den )?feststellungen zur person.*|zur person|person (?:des|der) .*|feststellungen zu(?:r|den) person(?:en)?\b.*'
+  - topic: flight_reasons
+    group: court
+    title: '(?:zu den feststellungen )?zu(?:m|r|den)? (?:den )?(?:vorgebrachten |behaupteten |geltend gemachten )?(?:flucht\w*|vorbringen|verfolgung\w*|ausreisegr\w*|rückkehrbefürchtung\w*|bedrohung\w*|gefährdung\w*|konversion|religion\w*)\b.*|(?:behauptete |vorgebrachte )?(?:fluchtgründe|ausreisegründe|fluchtvorbringen).*|feststellungen zu(?:m|r|den) (?:flucht\w*|vorbringen).*'
+  - topic: private_family_life
+    group: court
+    title: '.*(?:privat\w*|familien)\s?leben.*|.*\(privat\)leben.*|.*integration.*|.*leben in österreich.*|zu(?:r|m)? (?:\w+ ){0,2}(?:situation|aufenthalt|lage)\b.* in österreich.*'
+  # the applicant's situation on return comes before the country situation ("Zur Situation des Beschwerdeführers im
+  # Falle der Rückkehr in den Herkunftsstaat", "1.2. Zur Situation im Falle einer Rückkehr:")
+  - topic: return
+    group: court
+    title: '(?:zu(?:r|m)? )?(?:(?:den )?feststellungen zu(?:r|m)? )?(?:\w+ ){0,3}(?:situation|lage)\b.*\b(?:im fall\w*|bei|in bezug auf|hinsichtlich)\b.*\brückkehr(?!entscheidung)\w*\b.*'   # the applicant's situation on return, not a report's "Situation von Rückkehrern" (which stays a report's topic)
+  - topic: country_information
+    group: court
+    title: '(?:zu den feststellungen )?zu(?:r|m)? (?:(?:maßgeblichen|allgemeinen|entscheidungsrelevanten|entscheidungswesentlichen|entscheidungsmaßgeblichen|aktuellen|relevanten|hier relevanten|gegenwärtigen|derzeitigen|politischen|allgemeinen politischen|asyl- und abschiebungsrelevanten|asylrelevanten|abschiebungsrelevanten|aktuellen allgemeinen|allgemeinen menschenrechtlichen) )?(?:lage|situation)\b.*|zum herkunftsstaat.*|zu den länderfeststellungen.*|(?:die )?(?:maßgebliche )?(?:lage|situation) (?:im|in) .*|länderfeststellungen.*|feststellungen zu(?:r|m)? (?:lage|situation|herkunftsstaat).*|länderinformation\w*.*|zum herkunftsland.*|.*\blage im herkunfts(?:staat|land).*|feststellungen zu(?:r|m)? (?:\w+ ){1,2}(?:lage|situation)\b.*'
+  - topic: health
+    group: court
+    title: '.*gesundheit\w*.*|.*erkrankung\w*.*|zum gesundheitszustand.*'
+  - topic: criminal_record
+    group: court
+    title: '.*(?:straf\w*|verurteil\w*|delikt\w*|straffällig\w*).*'
+  - topic: return
+    group: court
+    title: '(?:zu(?:r|m|den)? )?(?:feststellungen zu(?:r|m)? )?(?:einer )?(?:möglichen |allfälligen )?rückkehr(?!entscheidung).*|zur rückkehr(?!entscheidung).*|rückkehrsituation.*|zu(?:r|m)? (?:den )?(?:feststellungen zu(?:r|m)? )?(?:einer )?(?:möglichen )?rückkehr(?!entscheidung).*'
+  # ---- the court's own parts: legal assessment (named after the issues of stage 08, config/outcomes/bvwg_issues.yaml)
+  - topic: oral_hearing
+    group: court
+    title: '.*mündliche\w* verhandlung.*|.*verhandlungspflicht.*|.*unterbleiben (?:einer|der) .*verhandlung.*'
+  - topic: legal_framework
+    group: court
+    title: '(?:zur )?(?:zuständigkeit|anzuwendende\w*|rechtslage|rechtsgrundlage\w*|gesetzliche\w* grundlage\w*|verfahrensbestimmungen|maßgebliche\w* rechtslage|prüfungsumfang|rechtliche\w* grundlage\w*|allgemeine\w* rechtliche\w*)\b.*|zur anzuwendenden rechtslage.*|zuständigkeit.*|anzuwendendes (?:verfahrens)?recht.*|zulässigkeit der beschwerde.*|verfahrensrechtliche\w* .*'
+  - topic: revision
+    group: court
+    title: '.*revision.*'
+  - topic: suspensive_effect
+    group: court
+    title: '.*aufschiebende\w* wirkung.*'
+  - topic: revocation
+    group: court
+    title: '.*aberkennung.*|.*aberkannt.*'
+  - topic: asylum
+    group: court
+    title: '.*(?:status des asylberechtigten|status eines asylberechtigten|\basyl\b|asylgewährung|asylberechtigt\w*|flüchtlingseigenschaft|§ ?3a? asylg).*'
+  # § 8 Abs. 4 AsylG is the extension of a subsidiary protection holder's befristete Aufenthaltsberechtigung, not a
+  # residence title
+  - topic: subsidiary_protection
+    group: court
+    title: '.*subsidiär\w*.*|.*§ ?8 asylg.*|.*§ ?8 abs\.? ?# asylg.*|.*befristete\w* aufenthaltsberechtigung.*'
+  - topic: family_procedure
+    group: court
+    title: '.*familienverfahren.*'
+  - topic: residence_title
+    group: court
+    title: '.*(?:aufenthaltstitel\w*|aufenthaltsberechtigung\w*|§ ?5[57] asylg).*'
+  - topic: return_decision
+    group: court
+    title: '.*(?:rückkehrentscheidung\w*|aufenthaltsbeendende\w* maßnahme\w*|ausweisung\w*|§ ?52 fpg).*'
+  - topic: departure_deadline
+    group: court
+    title: '.*(?:frist für die freiwillige ausreise|ausreisefrist|§ ?55 fpg).*'
+  - topic: entry_ban
+    group: court
+    title: '.*(?:einreiseverbot\w*|§ ?53 fpg).*'
+  - topic: admissibility
+    group: court
+    title: '.*(?:dublin\w*|außerlandesbringung|überstellung\w*|zulassungsverfahren|zurückweisung des antrag\w*|drittstaat\w*|mitgliedstaat\w*).*|mögliche verletzung von art\. # grc.*'
+  - topic: deportation
+    group: court
+    title: '.*abschiebung\w*.*'
+  # ---- quoted country reports (country of origin information) and the Dublin states' asylum systems
+  - topic: coi_asylum_system
+    group: coi
+    title: 'dublin-(?:ii-|iii-)?rückkehrer|non-refoulement|anerkannte flüchtlinge.*|.*prüfung subsidiärer schutz|sichere drittstaaten|unterbringung|versorgung|schutzberechtigte|allgemeines zum asylverfahren|beschwerdemöglichkeiten|folgeanträge|hotspots|asylverfahren|asylrechtliche haft|fremdenpolizeiliche haft|sprar|cie|ngos|unbegleitete minderjährige asylwerber.*|bei einem antrag am flughafen|beschwerde|cda, cara und cas|cpsa, cda, cara und cas|cie - .*|.*asylwerber.*|.*aufnahme\w*bedingungen.*'
+  - topic: coi_security
+    group: coi
+    title: '.*sicherheitslage.*|zivile opfer|zivilist/innen|rebellengruppen.*|high-profile angriffe.*|angriffe .*|resolute support mission|.*andsf.*|kontrolle von distrikten.*|taliban .*|hezb-e islami.*|.*aufständische\w*.*|regierungsfeindliche gruppierungen.*|taliban|haqqani-netzwerk|al-qaida|islamischer staat.*|.*\b(?:is|isis|daesh)\b.*|.*terror\w*.*|.*konflikt\w*.*|militärische operationen.*|.*kampfhandlungen.*|.*milizen?.*|kurdische kämpfer|friedens- und versöhnungsprozess|.*anschläge.*'
+  - topic: coi_authorities
+    group: coi
+    title: 'sicherheitsbehörden|rechtsschutz\s?/\s?justizwesen|rechtsschutz|justizwesen|korruption|ombudsmann|.*polizei.*|geheimdienst\w*.*|.*justiz\w*.*|.*strafverfolgung\w*.*|straflosigkeit.*'
+  - topic: coi_human_rights
+    group: coi
+    title: 'allgemeine menschenrechtslage|folter und unmenschliche behandlung|todesstrafe.*|haftbedingungen|meinungs- und pressefreiheit.*|versammlungs- und vereinigungsfreiheit.*|.*menschenrecht\w*.*|ngos und menschenrechtsaktivisten|opposition\w*.*|politische opposition|.*verschwindenlassen.*|.*blutfehde.*|.*willkür\w*.*'
+  - topic: coi_politics
+    group: coi
+    title: 'politische lage.*|neueste ereignisse.*|parteien|politische partizipation.*|.*wahlen.*|.*\bregierung.*|staatsbürgerschaft.*|.*staatsangehörigkeit.*'
+  - topic: coi_religion_ethnicity
+    group: coi
+    title: 'religionsfreiheit.*|ethnische minderheiten.*|religiöse gruppen.*|.*(?:christen|schiiten|sunniten|hazara|paschtunen|tadschiken|usbeken|kurden|jesiden|yeziden|sikhs|hindus|aleviten|araber|turkmenen)\b.*|religionen.*|apostasie.*|.*konvertiten.*|blasphemie.*'
+  - topic: coi_vulnerable_groups
+    group: coi
+    title: 'frauen.*|kinder.*|legales heiratsalter|familienplanung.*|waisenhäuser|.*frauenhäuser.*|.*homosexuell\w*.*|.*lgbt\w*.*|.*sexuelle orientierung.*|.*minderjährige.*|.*vulnerab\w*.*|.*kinderarbeit.*|.*rekrutierung von kindern.*|.*häusliche gewalt.*|.*geschlechtsspezifisch\w*.*|.*zwangsheirat.*|.*ehrenmorde?.*|.*alleinstehende.*'
+  - topic: coi_movement
+    group: coi
+    title: 'bewegungsfreiheit.*|meldewesen|.*flughafen.*|flugverbindungen|.*ring road|.*busverbindungen.*|.*bus service|zugverbindungen|salang .*|.*dokumente.*|.*reisefreiheit.*|.*reisedokumente.*|.*personaldokumente.*|.*binnenvertriebene.*|.*idps?\b.*|.*flughäfen.*|transportwesen|.*ein- und ausreise.*|.*straßen\w*.*|autobahn\w*.*'
+  - topic: coi_supply_economy
+    group: coi
+    title: 'grundversorgung.*|.*wirtschaft.*|berufstätigkeit|hawala-system|bank- und finanzwesen|wohnungen|drogenanbau|versorgung.*|.*arbeitsmarkt.*|.*sozialbeihilfen.*|.*arbeitslos\w*.*|.*lebensmittel\w*.*|.*wohnraum.*|.*unterkunft.*|dürre.*|.*humanitäre\w* (?:lage|situation).*|.*covid\w*.*|.*corona\w*.*|.*pandemie.*|.*\bbildung.*'
+  - topic: coi_medical
+    group: coi
+    title: 'medizinische versorgung.*|.*psychische\w* erkrankung\w*.*|.*medikamente.*|.*krankenh\w*.*|.*behandlungsmöglichkeit\w*.*|.*medcoi.*|.*gesundheit\w*.*|.*krankenkassen.*|.*krankenversicherung.*'
+  - topic: coi_return
+    group: coi
+    title: 'rückkehr.*|behandlung nach rückkehr.*|flüchtlinge in .*|unterstützung durch iom|.*rückkehrer\w*.*|.*unterstützung von rückkehrer.*|.*rückkehrhilfe.*|.*reintegration.*'
+  - topic: coi_regions
+    group: coi
+    title: '(?:provinz |stadt )?(?:kabul|herat|mazar-e sharif|balkh|kandahar|nangarhar|ghazni|kunduz|helmand|paktia|logar|wardak|maidan wardak|baghlan|parwan|bamyan|daikundi|faryab|jawzjan|takhar|badakhshan|laghman|kunar|khost|zabul|uruzgan|farah|nimroz|badghis|ghor|sar-e pul|samangan|panjshir|kapisa|nuristan|paktika|jalalabad|bagdad|mossul|basra|erbil|kirkuk|mogadischu|tschetschenien|dagestan|inguschetien|grosny)(?:-stadt)?(?: .*)?|.*provinz\w*.*|.*distrikt\w*.*|.*region\w*.*'
+  - topic: coi_organisations
+    group: coi
+    title: '.*(?:\(icrc\)|\(msf\)|\(ipso\)|\biom\b|unhcr|unama|ärzte ohne grenzen|roten kreuz|roter halbmond|caritas|\bngos?\b).*'
+  - topic: coi_military
+    group: coi
+    title: '.*rekrutierung\w*.*|.*grundwehrdien\w*.*|.*mobilisierung.*|wehrdienst.*|.*wehrersatzdienst.*|.*wehrdienstverweigerung.*|.*desertion.*|.*rekruten.*|.*streitkräfte.*|.*armee.*|.*militär\w*.*'

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "relation.schema.json",
+  "title": "Relation",
+  "description": "One rule-derived procedural connection between two nodes of the case graph. A node is a retrieved RIS document (document_id) or a known case without a retrieved RIS document (case_reference_id). Citations between decisions are not relations; they are citation objects (citation.schema.json). Membership in a wider proceeding is derived from the graph, not stored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "relation_id",
+    "relation_type",
+    "source_id",
+    "target_id",
+    "evidence",
+    "method",
+    "rule",
+    "match_type"
+  ],
+  "properties": {
+    "relation_id": {
+      "description": "rel:<source_id>--<relation_type>--<target_id>",
+      "type": "string",
+      "pattern": "^rel:.+--(reviews|transferred_to|same_case)--.+$"
+    },
+    "relation_type": {
+      "description": "reviews: a VwGH/VfGH decision decides on the remedy against the target BVwG decision; source = higher court. transferred_to: the VfGH transferred the complaint to the VwGH, which decided in the target; source = the VfGH decision or case. same_case: the target is the next later BVwG decision under a shared own case number, the chamber prefix aside; source = the earlier decision.",
+      "enum": ["reviews", "transferred_to", "same_case"]
+    },
+    "source_id": {
+      "$ref": "#/$defs/node_id"
+    },
+    "target_id": {
+      "$ref": "#/$defs/node_id"
+    },
+    "evidence": {
+      "description": "Verbatim quotes from retrieved documents that support the relation; may come from several documents.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "method": {
+      "enum": ["human", "rule_based", "model_based", "hybrid"]
+    },
+    "rule": {
+      "description": "Identifier of the rule or procedure that produced the relation.",
+      "type": "string"
+    },
+    "match_type": {
+      "description": "How the link was established, strongest first. exact_identifier: the evidence states an identifier that names exactly this decision or case (case number with document suffix; the case number of the transferring VfGH decision; a case number shared by two BVwG decisions). identifier_and_date: case number plus a matching decision or pronouncement date. identifier_only: a case number that fits exactly one decision. date_fallback: no identifier in the text; matched on the decision or pronouncement date and the date of the challenged BFA Bescheid; verify manually.",
+      "enum": ["exact_identifier", "identifier_and_date", "identifier_only", "date_fallback"]
+    }
+  },
+  "$defs": {
+    "document_id": {
+      "description": "A retrieved RIS document: ris:<court>:<ris_id>.",
+      "type": "string",
+      "pattern": "^ris:(bvwg|vwgh|vfgh):[A-Z0-9_]+$"
+    },
+    "case_reference_id": {
+      "description": "A known case without a retrieved RIS document (e.g. an unpublished VfGH transfer order): case:<court>:<case number as spelled in RIS>. Not a document_id.",
+      "type": "string",
+      "pattern": "^case:(bvwg|vwgh|vfgh):\\S.*$"
+    },
+    "node_id": {
+      "anyOf": [
+        {"$ref": "#/$defs/document_id"},
+        {"$ref": "#/$defs/case_reference_id"}
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document_id", "paragraph_id", "start", "end", "quote"],
+      "properties": {
+        "document_id": {
+          "$ref": "#/$defs/document_id"
+        },
+        "paragraph_id": {
+          "type": "string",
+          "pattern": "#p:[0-9]{4,}$"
+        },
+        "start": {
+          "description": "Offset into the document's full_text.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quote": {
+          "description": "full_text[start:end] of the evidence document.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

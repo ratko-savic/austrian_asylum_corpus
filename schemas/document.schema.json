@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "document.schema.json",
+  "title": "Document",
+  "description": "One RIS decision: RIS metadata plus text and structure extracted deterministically from the RIS XML. Citations are a separate derived object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "ris_id",
+    "court",
+    "ecli",
+    "case_number",
+    "case_numbers",
+    "document_numbers",
+    "decision_date",
+    "pronouncement_date",
+    "decision_type",
+    "source_url",
+    "ris_metadata",
+    "full_text",
+    "sections",
+    "paragraphs"
+  ],
+  "properties": {
+    "document_id": {
+      "description": "ris:<court>:<ris_id>, court in lower case.",
+      "type": "string",
+      "pattern": "^ris:(bvwg|vwgh|vfgh):[A-Z0-9_]+$"
+    },
+    "ris_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$"
+    },
+    "court": {
+      "enum": [
+        "BVwG",
+        "VwGH",
+        "VfGH"
+      ]
+    },
+    "ecli": {
+      "description": "ECLI as given by RIS. Never derived from the RIS ID (the suffixes can differ).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^ECLI:AT:[A-Z]+:[0-9]{4}:.+$"
+    },
+    "case_number": {
+      "description": "First case number (Geschaeftszahl) in the RIS metadata.",
+      "type": "string"
+    },
+    "case_numbers": {
+      "description": "All case numbers the decision covers: the RIS metadata plus joined case numbers printed at the head of the decision. The first item equals case_number.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "document_numbers": {
+      "description": "Case numbers with the document suffix as printed at the head of the decision (BVwG: 'L519 2309863-1/7E'). Distinguishes decisions that share a case number. Empty if the decision prints none.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "decision_date": {
+      "description": "RIS Entscheidungsdatum. For orally pronounced decisions this is the date of the written copy.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "pronouncement_date": {
+      "description": "Date of oral pronouncement ('mündlich verkündet') stated at the head of the decision, else null.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "decision_type": {
+      "description": "RIS Entscheidungsart normalised: Erkenntnis -> judgment, Beschluss -> order (also ErkenntnisVS / BeschlussVS of a reinforced senate of the VwGH). The raw value stays in ris_metadata.",
+      "enum": [
+        "judgment",
+        "order"
+      ]
+    },
+    "source_url": {
+      "description": "Public RIS document link.",
+      "type": "string",
+      "pattern": "^https://www\\.ris\\.bka\\.gv\\.at/Dokument\\.wxe\\?Abfrage=(Bvwg|Vwgh|Vfgh)&Dokumentnummer=[A-Z0-9_]+$"
+    },
+    "ris_metadata": {
+      "description": "The RIS OGD API record Data.Metadaten, verbatim.",
+      "type": "object",
+      "required": [
+        "Technisch",
+        "Allgemein",
+        "Judikatur"
+      ]
+    },
+    "full_text": {
+      "description": "Deterministic text of the decision, built from the RIS XML (not the HTML). (1) Units: one paragraph per RIS paragraph element (<absatz>), list item (<listelem>: its symbol, a space, the text) and list closing paragraph (<schluss>, <schlussteil>), and one per table row (see paragraph). (2) Left out: page headers and footers, the RIS header fields (Gericht, Entscheidungsdatum, Geschäftszahl, ECLI), the RIS field labels, the editorial VfGH Leitsatz (kept in ris_metadata) and images. (3) Inline elements: <gdash/> -> '-'; <tab/>, <br/>, <nbsp/>, <em14/> -> space; <amp/>, <lt/>, <gt/> -> '&', '<', '>'. (4) Characters: U+00A0 -> space; U+00AD removed; Word symbol-font bullets U+F0B7 and U+F095 -> '•', U+F02D -> '-'; every other character unchanged. (5) Whitespace runs -> one space; each paragraph trimmed. (6) Paragraphs joined by a single '\\n'. (7) Footnotes (<fnen>/<fntext>): one paragraph per footnote, after all other paragraphs, in a section of type other with source_label 'Fußnoten'; the reference marks carry no text.",
+      "type": "string"
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/section"
+      }
+    },
+    "paragraphs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/paragraph"
+      }
+    }
+  },
+  "$defs": {
+    "offset": {
+      "description": "Character offset into full_text (start inclusive, end exclusive).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "section": {
+      "description": "A contiguous run of paragraphs. Types may repeat (a document can contain several decisions).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source_label",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "id": {
+          "description": "<document_id>#s:<01>",
+          "type": "string",
+          "pattern": "#s:[0-9]{2}$"
+        },
+        "type": {
+          "description": "subject: introductory part naming court, parties and challenged act (VwGH 'Betreff'; BVwG head of the 'Spruch' up to the sentence ending 'zu Recht erkannt:' / 'beschlossen:'). operative_part: the operative provisions. reasoning: 'Begründung' / BVwG 'Text'. other: any other RIS field.",
+          "enum": [
+            "subject",
+            "operative_part",
+            "reasoning",
+            "other"
+          ]
+        },
+        "source_label": {
+          "description": "The label of the RIS field the section comes from (Betreff, Spruch, Begründung, Text, ...), else its field code; 'Fußnoten' for the footnotes.",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/offset"
+        },
+        "end": {
+          "$ref": "#/$defs/offset"
+        }
+      }
+    },
+    "paragraph": {
+      "description": "One RIS paragraph element (<absatz>), list item (<listelem>) or list closing paragraph (<schluss>, <schlussteil>) whose text is not empty after normalisation (see full_text). A leading structural margin number is moved to marginal_number. Tables: one paragraph per row; each cell's paragraph elements are joined by a space, the cells are joined in column order by ' | ', empty cells are kept so the columns stay aligned, and rows whose cells are all empty are dropped; a table nested in a cell is part of that cell's text (only the rows of the outer table are paragraphs). full_text[start:end] == text.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "section_id",
+        "marginal_number",
+        "start",
+        "end",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "description": "<document_id>#p:<0001>",
+          "type": "string",
+          "pattern": "#p:[0-9]{4,}$"
+        },
+        "section_id": {
+          "type": "string",
+          "pattern": "#s:[0-9]{2}$"
+        },
+        "marginal_number": {
+          "description": "Margin number (Randzahl) that the RIS XML marks structurally (a number followed by a tab at the start of the paragraph, used by the VwGH); removed from text, except in a paragraph that holds nothing else. Outline labels such as '1.1.', 'II.' or 'a)' stay in the text.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]+$"
+        },
+        "start": {
+          "$ref": "#/$defs/offset"
+        },
+        "end": {
+          "$ref": "#/$defs/offset"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

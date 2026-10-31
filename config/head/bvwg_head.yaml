@@ -1,0 +1,244 @@
+# Labels from the head of a BVwG decision (stage 04). Code: src/asylum_corpus/head/extract.py.
+#
+# The head is the subject section(s) of the decision (the RIS field Spruch up to the introductory sentence):
+#   "Das Bundesverwaltungsgericht hat durch den Richter Mag. X als Einzelrichter über die Beschwerde des XXXX, geb. XXXX,
+#    StA. Afghanistan, vertreten durch die BBU GmbH, gegen den Bescheid des Bundesamtes für Fremdenwesen und Asyl vom
+#    12.03.2018, Zl. 1234567-180123, zu Recht erkannt:"
+# A value read from the text records the span it was read from; judge.formation, judge.department, appellants.count,
+# appellants.births_printed and failure_to_act have none. Patterns are applied to the head text with whitespace
+# collapsed; the comments name the forms a pattern covers. The package (stage 10) replaces the judge's name by a
+# pseudonymous ID.
+
+judge:
+  # the phrase that introduces the judge ("durch den Richter", "durch seinen Richter", "durch ihre Richterin"); group
+  # "role" and the 40 characters after the name decide the gender where they say Richter / Richterin / Vorsitzende(n)
+  intro: '(?:durch|hat)\s+(?:den\s+|die\s+|seinen\s+|seine\s+|ihren\s+|ihre\s+){0,2}(?P<role>Richterin|Richter|Vorsitzende|Vorsitzenden|Einzelrichterin|Einzelrichter)?\s*,?\s*(?P<name>(?:(?:Mag(?:\.a|a)?|Dr(?:\.in|in)?|MMag|Dipl|Ing|DDr|MA|BA|MSc|LL\.M|Bakk|MBA|PhD|Prof|Hon\.-Prof|Mag\.\(FH\)|MAS)(?:\.|(?![\wÄÖÜäöüß]))(?:\s?\(FH\))?\s*,?\s*)*(?:[A-ZÄÖÜ]\.\s?)*[A-ZÄÖÜ][\wäöüß\-]+(?:\s+(?:[A-ZÄÖÜ]\.\s?)*[A-ZÄÖÜ][\wäöüß\-]+){0,3}(?:\s*,?\s*(?:LL\.M|MAS|MA|BA|MSc|MBA|PhD|BEd)(?:\.|(?![\wÄÖÜäöüß])))*)'
+  female: 'Richterin|Vorsitzende\b|Einzelrichterin'
+  male: 'Richter\b|Vorsitzenden|Einzelrichter\b'
+  single_judge: 'als\s+Einzelrichter(?:in)?'
+  senate: '\bSenat\b|als\s+Vorsitzende|Beisitzer|fachkundige[nr]?\s+Laienrichter'
+  # "LL" left of "LL.M." after a stray space is no part of the name
+  name_trailing: '\s+LL(?:\.\s?M\.?)?$'
+  # a title is a whole word with its period: "MA" of "MAYER" or "Dr" of "Drucker" is no title
+  titles: '(?:Mag(?:\.a|a)?|Dr(?:\.in|in)?|MMag|Dipl|Ing|DDr|MAS|MA|BA|MSc|LL\.M|Bakk|MBA|PhD|Prof|Hon\.-Prof|BEd)(?:\.|(?![\wÄÖÜäöüß]))(?:\s?\(FH\))?'
+
+appellants:
+  # The number of appellants is the largest of: the distinct case numbers without department and proceeding number
+  # ("W182 2143175-2" and "2143175-2" are one person); the numbered list of the head's persons; the distinct persons of
+  # the challenged decisions (a BFA file number begins with the person's IFA number, and a head repeated per appellant
+  # names one decision in each block; an older Bundesasylamt number is one proceeding, so it tells persons apart only
+  # between blocks); where the head has no numbered list, the unnumbered persons with an article in its first block
+  # ("der XXXX ... und des XXXX").
+  #
+  # the numbered list: "1.) XXXX", "1.) des XXXX", "(1) mj. XXXX", "1) XXXX", "1. der XXXX", a name anonymised as "Gxxxx"
+  numbered: '(?:^|[\s,;(:])\(?(\d{1,2})\s?(?:\.\)|\)|\.)\s*(?:(?:des|der|dem|den|die|von)\s+)?(?:(?:mj\.?|minderj\w*|mdj\.?|mündig\w*|unmündig\w*)\s+)?(?:Herrn\s+|Frau\s+)?(?:XXXX|[A-ZÄÖÜ]x{3,}\b)'
+  # unnumbered persons with an article ("Beschwerde der XXXX … und des XXXX"), counted from the appeal ("Beschwerde",
+  # "Säumnisbeschwerde", "Vorlageantrag", "Antrag": not an anonymised authority before it) to the end of the persons
+  # part of the head's first block
+  unnumbered: '(?:^|[\s,;(])(?:des|der)\s+(?:(?:mj\.?|minderjährigen|mündigen|unmündigen|mdj\.?)\s+)?(?:Herrn\s+|Frau\s+)?XXXX'
+  persons_start: '\b(?:Säumnis)?[Bb]eschwerde(?!vorentscheidung)\w*\b|\bVorlageantr\w*|\bAntr(?:ag|äge)\w*\b'
+  # where the persons part of a head block ends
+  persons_end: '\bgegen\s+(?:den|die|das|jeweils|Spruch\w*)\b|\bwegen\b|\bbetreffend\b'
+  # a head block: each "Das Bundesverwaltungsgericht hat / erkennt / beschließt" begins one (joined heads)
+  block: 'Das\s+Bundesverwaltungsgericht\s+(?:hat|erkennt|beschließt|beschliesst)\b'
+  births: '\bgeb(?:\.|oren)\s'
+  # "mj.", "Mj.", "minderjährig", "die Minderjährigen", a statutory representative ("gesetzlich vertreten", "gesetzliche(n)
+  # Vertreter", also misspelt "gestzliche Vertreterin"), a parent or the child and youth welfare, and a representation by
+  # a co-appellant ("vertreten durch BF1"; "3) - 5), vertreten durch 1) und 2)"). Birth dates alone do not count.
+  minors: '\b[Mm]j\.|[Mm]inderjährig|vertreten\s+durch\s+\(?\d{1,2}\.?\)|ges(?:e|)tzlich\s+vertreten|ges(?:e|)tzliche[nr]?\s+Vertreter|Kindesmutter|Kindesvater|vertreten\s+durch\s+(?:die|den|ihre|seine)\s+(?:Mutter|Vater|Eltern)|Kinder-\s+und\s+Jugendhilfe|vertreten\s+durch\s*:?\s+(?:die\s+|den\s+)?(?:BF\s?\d|bP\s?\d|(?:Erst|Zweit|Dritt|Viert)beschwerdeführer)'
+
+nationality:
+  # the printed nationality: after "StA." / "Staatsangehörigkeit" (also "StA jeweils Irak" and the misspelling
+  # "Staatangehörigkeit"), or an adjective before "Staatsangehörige(r)"
+  printed: '(?:(?<![A-Za-zäöü])|(?<=XXXX))(?:St[Aa]\.?|Staats?angehörigkeit|Staats(?:angehörige[rn]?|bürger(?:in)?)\s+(?:von|der|des)|Staats(?:angehörige[rn]?|bürger(?:in)?)(?=\s+[A-ZÄÖÜ])|staatsangehörig)\s*[:,]?\s*(?:von\s+)?(?:der\s+|des\s+)?(?:jeweils\s+)?(?:aller\s+(?:BF|Beschwerdeführer\w*)\s+)?(?P<country>(?i:unbekannt|ungeklärt|staatenlos)\b|(?:(?i:Islamische[n]?\s+Republik|Arabische[n]?\s+Republik|Föderale[n]?\s+Demokratische[n]?\s+Republik|Demokratische[n]?\s+Republik|Kirgisische[n]?\s+Republik|Volksrepublik|Bundesrepublik|Republik|VR|DR)\s+)?(?:XXXX|[A-ZÄÖÜ][\wäöüßÄÖÜ\-]+(?i:\s+Föderation|\s+und\s+Herzegowina|-Herzegowina|\s+Leone|\s+Lanka|\s+Arabien|\s+Kongo|\s+d.Ivoire|-Bissau)?))|(?P<adjective>[a-zäöü]+(?:isch|ianisch|esisch|arisch|enisch))(?:e[rn]?)?\s+Staats(?:angehörig|bürger)|(?<![A-Za-zäöü])(?P<stateless>staatenlos)\b'
+  # a second nationality right after the first ("alle StA. Syrien und Armenien"): read only where it is a country of
+  # the list below (patterns used at a position have no "^")
+  more: '\s*(?:und|sowie|bzw\.|/)\s*(?:der\s+|des\s+)?(?P<country>[A-ZÄÖÜ][\wäöüßÄÖÜ\-]+(?:\s+Föderation)?)'
+  # normalised country names; keys are lower case (printed name or adjective stem). Before the lookup a name printed
+  # in capitals is title-cased, a state form ("Republik", "Islamische Republik", "VR", ...) and a genitive "s" are
+  # removed ("Demokratische Republik Kongo" is kept: another country than "Kongo"); an unknown name stays as printed,
+  # or title-cased without its state form where the lookup changed it
+  countries:
+    afghanistan: Afghanistan
+    islamische republik afghanistan: Afghanistan
+    afghanisch: Afghanistan
+    irak: Irak
+    republik irak: Irak
+    irakisch: Irak
+    syrien: Syrien
+    arabische republik syrien: Syrien
+    syrisch: Syrien
+    russische föderation: Russische Föderation
+    russland: Russische Föderation
+    russisch: Russische Föderation
+    somalia: Somalia
+    somalisch: Somalia
+    nigeria: Nigeria
+    nigerianisch: Nigeria
+    iran: Iran
+    islamische republik iran: Iran
+    iranisch: Iran
+    pakistan: Pakistan
+    islamische republik pakistan: Pakistan
+    pakistanisch: Pakistan
+    armenien: Armenien
+    armenisch: Armenien
+    georgien: Georgien
+    georgisch: Georgien
+    kosovo: Kosovo
+    republik kosovo: Kosovo
+    kosovarisch: Kosovo
+    ukraine: Ukraine
+    ukrainisch: Ukraine
+    türkei: Türkei
+    türkisch: Türkei
+    indien: Indien
+    indisch: Indien
+    bangladesch: Bangladesch
+    marokko: Marokko
+    marokkanisch: Marokko
+    mongolei: Mongolei
+    china: China
+    volksrepublik china: China
+    chinesisch: China
+    bosnien-herzegowina: Bosnien und Herzegowina
+    gambia: Gambia
+    libanon: Libanon
+    serbien: Serbien
+    tadschikistan: Tadschikistan
+    ägypten: Ägypten
+    ägyptisch: Ägypten
+    mazedonien: Nordmazedonien
+    nordmazedonien: Nordmazedonien
+    aserbaidschan: Aserbaidschan
+    eritrea: Eritrea
+    eritreisch: Eritrea
+    albanien: Albanien
+    jemen: Jemen
+    algerien: Algerien
+    algerisch: Algerien
+    moldawien: Moldau
+    moldau: Moldau
+    tunesien: Tunesien
+    tunesisch: Tunesien
+    russischen föderation: Russische Föderation
+    demokratische republik kongo: Demokratische Republik Kongo
+    demokratischen republik kongo: Demokratische Republik Kongo
+    dr kongo: Demokratische Republik Kongo
+    bosnien: Bosnien und Herzegowina
+    bosnien und herzegowina: Bosnien und Herzegowina
+    bosnisch: Bosnien und Herzegowina
+    bangladesh: Bangladesch
+    yemen: Jemen
+    kirgistan: Kirgisistan
+    kirgisisch: Kirgisistan
+    kirgisistan: Kirgisistan
+    weißrussland: Belarus
+    belarus: Belarus
+    elfenbeinküste: Côte d'Ivoire
+    côte d'ivoire: Côte d'Ivoire
+    côte: Côte d'Ivoire
+    serbisch: Serbien
+    albanisch: Albanien
+    nordmazedonisch: Nordmazedonien
+    mazedonisch: Nordmazedonien
+    ghanaisch: Ghana
+    guineisch: Guinea
+    kamerunisch: Kamerun
+    äthiopisch: Äthiopien
+    sudanesisch: Sudan
+    libysch: Libyen
+    jordanisch: Jordanien
+    tschetschenisch: Russische Föderation
+    staatenlos: stateless
+    staatenlose: stateless
+    xxxx: anonymised
+    ungeklärt: unknown
+    unbekannt: unknown
+
+representation:
+  # "vertreten durch" (also with a colon: "vertreten durch: ARGE Rechtsberatung") and up to 200 characters (two
+  # organisations with an address); a further representation ends the first one (", alle vertreten durch Dr. X,
+  # Rechtsanwalt" after the parents as guardians); it ends before "über die", "vom <date>" and ", alle StA." too (the
+  # longer text runs on past them)
+  printed: 'vertreten\s+(?:durch|von)\s*:?\s+(?P<who>[^;]{3,200}?)(?=,\s*(?:gegen|wegen|vom|über)\b|\s+(?:gegen|wegen)\s|\s+über\s+die\b|\s+vom\s+(?:\d|XXXX)|,\s*(?:(?:alle|beide|jeweils)\s+)?(?:StA\b|Staatsangeh)|,\s*\d\.\)|(?:,\s*(?:(?:alle|beide|sämtliche|jeweils|nunmehr|wiederum|sowie|und)\s+(?:[\w.*\-]+\s+){0,2}?)?|\s+(?:alle|beide|sämtliche|jeweils|nunmehr|wiederum|sowie|und)\s+(?:[\w.*\-]+\s+){0,2}?)(?:gesetzlich\s+)?vertreten\s+(?:durch|von)\b|;|$)'
+  # a representative named before a representation of all ("…, 3. vertreten durch XXXX, alle vertreten durch die BBU"):
+  # the one of some appellants, the minors': a guardian where its kind is anonymised or other
+  for_all: '\s*,?\s*(?:[\w.]+\s+){0,3}?(?:alle|beide|sämtliche|jeweils)\s+(?:[\w.,]+\s+){0,4}?vertreten\s+(?:durch|von)\b'
+  # a representative itself represented ("die Mutter XXXX, diese vertreten durch die BBU GmbH"; "die BBU GmbH, diese
+  # vertreten durch Mag.a X"; "das Land NÖ, dieses vertreten durch die BH Baden"): one representation. Where its first
+  # part is a guardian, anonymised or other and a later part a lawyer or an organisation (or, after a guardian, an
+  # anonymised one), the first is listed as the guardian and the later one beside it (the guardian then drops out of
+  # the kinds), and the head names a minor (a person represented by a lawyer or an organisation is a statutory
+  # representative: "vertreten durch: XXXX diese vertreten durch: RA …"); else the first part's kind holds
+  chain: ',?\s*dies(?:e|er|es)\s+(?:nunmehr\s+|wiederum\s+)?vertreten\s+(?:durch|von)\s*:?\s+'
+  # "gesetzlich vertreten durch …" is a guardian whoever is named (the Land, the mother, an anonymised person)
+  statutory: 'ges(?:e|)tzlich\w*\s+$'
+  # an organisation and then a lawyer in one representation ("vertreten durch den MigrantInnenverein St. Marx, RA Dr.
+  # X"): both kinds; a part beginning with "RA" / "Rechtsanwalt" is a lawyer
+  also_lawyer: ',\s*(?=(?:RA|RAe|RAin|Rechtsanw)\w*\b)'
+  # "vertreten durch, gegen …": the representative's name removed by the anonymisation: represented, anonymised
+  removed: 'vertreten\s+durch\s*,'
+  # The kind of each representative (first match): guardian (of a minor), lawyer, legal advice organisation,
+  # anonymised, else other. The kinds of a decision list the representatives of the appeal: a guardian of minors only
+  # where no other representative is named (every representative stays in `representatives` with its kind).
+  kinds:
+    - kind: guardian
+      pattern: '^\s*\(?\d{1,2}\.?\)?\s*(?:$|,|und\b|sowie\b|bis\b)|\b(?:BF\s?\d+|bP\s?\d+)\b|\b(?:Mutter|Vater|Eltern|Kindesmutter|Kindesvater|\w*[Bb]eschwerdeführer\w*|gesetzliche\w*\s+Vertret|Kinder-\s+und\s+Jugendhilfe|Jugendwohlfahrt|Bezirkshauptmannschaft|Magistrat|Obsorge|Großmutter|Großvater|Onkel|Tante|Bruder|Schwester)'
+    - kind: lawyer
+      # also in capitals ("RECHTSANWÄLTE … GmbH"); a law firm is a lawyer
+      pattern: '\bRAe?\b|\bRä\b|(?i:rechtsanw|anwält|anwalt|kanzlei)|\bOG\b|\bKG\b|Partnerschaft'
+    - kind: organisation
+      # also refugee and church organisations ("Flüchtlings- und Integrations-Arbeit (FIA), Internationale
+      # Baptistengemeinde")
+      pattern: '(?i:verein|\bbbu\b|bundesagentur|\barge\b|diakonie|volkshilfe|caritas|rote[ns]?\s+kreuz|migrantinnen|\bzeige\b|zentrum|asyl in not|helping hands|beratung|gmbh|flüchtlings|organisation|\bvmö\b|integration|kirche|pfarr|diözese|gemeinde)'
+    - kind: anonymised
+      pattern: '^(?:(?:die|den|der|das)\s+)?XXXX\b'
+
+challenged_decision:
+  # The challenged decision: a Bescheid, a Mitteilung or a Beschwerdevorentscheidung of the authority, also "gegen das
+  # als "Bescheid" bezeichnete Schriftstück des Bundesamtes" and the misspelling "Bundeamtes"; the date also without
+  # "vom" when it is a date in digits (an anonymised "XXXX" without "vom" is a place) and after a list number ("vom 1.
+  # 29.05.2017, Zl. …, 2. 26.05.2017"). The decisions after "gegen" come first (the challenged ones).
+  printed: '(?:gegen\s+(?:den|die|das|Spruchpunkt[e]?\s+[IVX\.,\sund]+(?:des|der))\s+)?(?:als\s+[„"]?Bescheid[“"]?\s+bezeichnete\w*\s+Schriftstück\w*|Bescheid(?:e|es|s)?|Beschwerdevorentscheidung(?:en)?|Mitteilung(?:\s+gemäß\s+§\s*\d+\w*(?:\s+Abs\.\s*\d+\w*)?\s+[A-Za-zÄÖÜäöü\-]+(?:\s+\d{4})?)?)\s+(?:bezeichnete\s+Schriftstück\s+)?(?:(?:des|der)\s+)?(?:\((?:vormals|ehemals)\)\s+)?(?:\d\)\s+)?(?P<authority>(?:Bundes|Bundeamt|Österr|Bezirks|Magistrat|Landes|Asyl|belangt|BFA\b|BAA\b)[^,]{0,110}?(?:,[^,]{3,60}?){0,2}),?\s*(?:jeweils\s+)?(?:vom\s+(?:jeweils\s+)?(?:\(?\d\.?\)\s*|\d{1,2}\.\s+(?=\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}))?|(?=\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}))(?P<date>\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}|\d{1,2}\.[\s?]?(?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)[\s?]\d{4}|X{3,})'
+  # further challenged decisions in the same phrase: after a date and its file number, another date, joined by "und /
+  # sowie / ," or a list number ("…, Zl. 1019586400-14651222 und vom 04.05.2015, Zl. …"; "vom 1. 29.05.2017, Zl. XXXX ,
+  # 2. 26.05.2017, Zl. XXXX"); only separators, a file number and "vom" may stand between them; an anonymised date
+  # ("XXXX") only after "vom"
+  more_dates: '\s*,?\s*(?:(?:Z[lI](?:en)?|Zahl(?:en)?|GZ|AZ)\s*\.?\s*:?\s*(?:\(?\d{1,2}\.?\)\s*)?[„"]?[\w\-/\.]+(?:\s?[-/]\s?[\w\-/\.]+)*[“"]?(?:\s*\([^)]{0,30}\))?)?\s*,?\s*(?:und\s+|sowie\s+|bzw\.\s+)?(?:jeweils\s+)?(?:(?:vom\s+)?(?:\(?\d{1,2}\.?\)\s*|\d{1,2}\.\s+(?=\d{1,2}\.\s?\d{1,2}\.))?(?P<date>\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}|\d{1,2}\.\s?(?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d{4})|vom\s+(?P<anonymised>X{3,}(?:\s?\.?\s?\d{1,2}\s?\.\s?\d{4})?)\b)'
+  # a known authority named without a date ("gegen den Bescheid des Bundesamtes für Fremdenwesen und Asyl im Verfahren
+  # XXXX"): recorded with date null, where the pattern above finds nothing
+  printed_without_date: 'Bescheid(?:e|es|s)?\s+(?:(?:des|der)\s+)?(?:\((?:vormals|ehemals)\)\s+)?(?P<authority>Bundesamt(?:e?s)?\s+für\s+Fremdenwesen\s+und\s+Asyl|Bundesasylamt(?:e?s)?|Österreichische[n]?\s+Botschaft\s+\S+)'
+  # the authority named first in the printed name counts ("Bundesasylamtes (nunmehr: Bundesamt für Fremdenwesen und
+  # Asyl)" is the BAA's); a name that matches none is "other"
+  authorities:
+    BFA: 'Bunde?s?amt(?:e?s)?(?:\s+für\s+(?:Fremdenwesen\s+und\s+Asyl|Asyl\s+und\s+Fremdenwesen|Asyl-\s+und\s+Fremdenwesen))?\b(?!\s+für\s+(?!Fremdenwesen|Asyl))|\bBFA\b'
+    embassy: 'Botschaft|Österreichische[n]?\s+Vertretung|Generalkonsulat|Vertretungsbehörde'
+    BAA: 'Bundesasylamt(?:es)?'
+  # The file number (Zl., Zahl, FZ, GZ), complete as printed: with a list number "(1)", "1)" or "1." before it, also
+  # "Zln. 1.)", "Zl.en 1.)", "Zlen 1.). 1245…", "Zl. Zu 1) XXXX", "Zl. a) XXXX"; "XXXX/BMI-…"; in quotes, with " - ",
+  # " / ", an en dash or a dash and a space inside ("1097600408 – 151919565", "1370822900- XXXX"); after the label
+  # "IFA-Zahl/Verfahrenszahl:" and that label without "Zl."; "FZ:" / "FZ."; the suffix "EAST-WEST" after "/BMI" (a number
+  # ending in digits stays without its "EAST Ost"); the forms "GF: 16-1105549103 VZ: 160245488" and "IFA 1124788300,
+  # Verfahrenszahl 161065232" as printed; "Zl. IFA: 1078584302" without its label; a second half after a comma ("…,
+  # VZ:150422838-EAST-WEST", "…-EAST Ost, IFA 831693206"). Not a following list number ("Zl. 11 06.929-BAI 2. …",
+  # "2.)") or a word glued to an anonymised number ("XXXXeingelangt").
+  file_number: '(?<![\w\-])(?:Z[lI](?:\.?en|n)?|Zahl(?:en)?|GZ|Aktenzahl|AZ|F[Zz]|IFA-Zahl/Verfahrenszahl)\s*\.?\s*:?\s*[„"]?(?:(?:IFA-Zahl/Verfahrenszahl|IFA-Zahl|Verfahrenszahl|VZ|IFA(?!\s*:?\s*[\d\-]+,?\s+(?:VZ|Verfahrenszahl|Verfahren)\b))\s*:?\s*)?(?:[Zz]u\s+)?(?:\(?\d{1,2}\.?\)\.?\s*|\d{1,2}\.\s+(?=[\dXIG])|[a-z]\)\s*)?[„"]?(?P<number>(?:GF|IFA)\s*:?\s*[\d\-]+,?\s+(?:VZ|Verfahrenszahl|Verfahren)\s*:?\s*\d+(?:-[A-Z][\w\-]*(?:\s(?:Ost|OST|West|WEST)\b)?)?|[Xx]{3,}(?=[a-zäöüß])|[\w\-/\.]+(?:\s?[-/–]\s?[\w\-/\.]+|(?<=[-/])\s[\w\-/\.]+)*(?:\s(?=\d)(?!\d{1,2}(?:\.\)|\.|\))(?:\s|$))[\w\-/\.]+)*(?:(?<=BMI)\s(?:EAST|East)(?:[\-\s](?:WEST|West|OST|Ost))?\b|(?<=EAST)\s(?:Ost|OST|West|WEST)\b)?(?:,\s*(?:IFA|VZ)\s*:?\s*[\w\-]+)?)'
+  # a file number printed without "Zl." right after the date (", 1328219505/250128626"), also after a list number, as
+  # "IFA …, Verfahrenszahl …" and as an anonymised "XXXX" between commas
+  file_number_bare: '\s*,\s*(?:\(?\d{1,2}\.?\)\s*)?(?P<number>(?:GF|IFA)\s*:?\s*[\d\-]+,?\s+(?:VZ|Verfahrenszahl)\s*:?\s*\d+(?:-[A-Z][\w\-]*(?:\s(?:Ost|OST|West|WEST)\b)?)?|\d{8,10}\s?[-/]\s?\d{6,12}(?:\s?/\s?[\w\-]+)?\b|XXXX(?=\s*,))'
+  # a file number printed before the date, inside the authority's name ("des Bundesamtes für Fremdenwesen und Asyl,
+  # EAST Ost, XXXX /BMI-EAST_OST vom 21.11.2018"): taken out of the name
+  file_number_in_authority: ',\s*(?P<number>(?:XXXX|\d{8,10}(?:\s?[-/]\s?\d{6,12})?)\s?/\s?BMI[\w\-]*|\d{8,10}\s?[-/]\s?\d{6,12})\s*$'
+  # a BFA named for a decision with a Bundesasylamt file number ("Bescheid des Bundesamt für Fremdenwesen und Asyl, vom
+  # 05.04.2013, Zl. 1301.401-BAW": the BFA did not exist before 2014) is the Bundesasylamt's
+  baa_file_number: '-BA[A-Z]\b'
+  # a decision named without its authority ("gegen den Bescheid vom 25.03.2025, Zahl XXXX"), where nothing else is
+  # found: authority not printed (null); the authority may follow the file numbers ("gegen die Bescheide vom
+  # 05.10.2017, (1.) Zl. …, des Bundesamtes für Fremdenwesen und Asyl")
+  printed_without_authority: '\bgegen\s+(?:den|die)\s+Bescheid(?:e)?\s+vom\s+(?P<date>\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})(?=(?:[^;:]{0,300}?\b(?:des|der)\s+(?P<authority>Bundesamt\w*\s+für\s+Fremdenwesen\s+und\s+Asyl|Bundesasylamt\w*))?)'
+  # the points the appeal is limited to: "Spruchpunkt(e)", "Spruchteile" and the misprint "Spruchunkt"; "gegen jeweils /
+  # den Spruchpunkt"; Arabic numerals ("gegen Spruchpunkt 1."); "(Spruchpunkt I.)" after the file number; every
+  # mention in the head counts (joined heads)
+  scope: 'gegen\s+(?:(?:die|den|jeweils|nur|lediglich|ausschließlich)\s+){0,2}Spruch(?:punkt|unkt|teil)(?:e|en|s)?\s+(?P<points>(?:[IVX]+|\d{1,2})\.?(?:\s?(?:,|und|bis|sowie)\s?(?:[IVX]+|\d{1,2})\.?)*)|\(\s*Spruch(?:punkt|unkt|teil)(?:e|en)?\s+(?P<points2>[IVX]+\.?(?:\s?(?:,|und|bis)\s?[IVX]+\.?)*)\s*\)'
+  failure_to_act: 'Säumnisbeschwerde|Verletzung\s+der\s+Entscheidungspflicht|wegen\s+Säumnis'

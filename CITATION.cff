@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Austrian Asylum Corpus: code to build the corpus"
+version: 1.0.0
+license: MIT
+authors:
+  - family-names: "Savic"
+    given-names: "Ratko"
+    affiliation: "Graz University of Technology"
+    orcid: "https://orcid.org/0009-0000-0940-7323"
+    email: "ratko.savic@tugraz.at"
+  - family-names: "Helic"
+    given-names: "Denis"
+    affiliation: "Graz University of Technology"
+    orcid: https://orcid.org/0000-0003-0725-7450
+  - family-names: "Kern"
+    given-names: "Roman"
+    affiliation: "Graz University of Technology"
+    orcid: https://orcid.org/0000-0003-0202-6100
+
+repository-code: "https://github.com/ratko-savic/austrian_asylum_corpus"
+abstract: >-
+  Rules and code that build the Austrian Asylum Corpus from the open data of the Austrian Legal Information System
+  (RIS): download, filter, parse, head labels, segmentation, citations, links between the courts, outcomes, the agent
+  corpus and the data package.
+keywords:
+  - asylum
+  - Austria
+  - court decisions
+  - legal corpus
+  - RIS

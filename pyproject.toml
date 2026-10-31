@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "austrian-asylum-corpus"
+version = "1.0.0"
+description = "Code and rules that build the Austrian Asylum Corpus (BVwG, VwGH, VfGH) from the open data of the RIS"
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "Ratko Savic", email = "ratko.savic@tugraz.at"},
+    {name = "Denis Helic"},
+    {name = "Roman Kern"},
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6",
+    "jsonschema>=4.20",
+    "requests>=2.31",
+]
+
+[project.urls]
+Repository = "https://github.com/ratko-savic/austrian_asylum_corpus"
+Data = "https://doi.org/10.5281/zenodo.23809754"
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]   # decision texts and XML quoted whole

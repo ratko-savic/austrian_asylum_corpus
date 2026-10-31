@@ -1,0 +1,462 @@
+# Heading rules for the reasoning of BVwG decisions (stage 05): which printed headings open which section.
+# Code: src/asylum_corpus/segmentation/headings.py (matching), subsections.py (the hierarchy rules) and
+# templates.py (the structure templates); each module's docstring explains its rules.
+#
+# How a rule matches: a reasoning paragraph of at most 100 characters is split into its outline label signature and
+# its title ('II.1. Feststellungen:' -> 'R.#.' + 'Feststellungen'). The first rule whose `title` pattern matches the
+# WHOLE title (case-insensitive) and whose `labels` contain the signature wins. Whole-title matching keeps sentences
+# out ("Der oben unter Punkt I. angeführte Verfahrensgang ergibt sich aus dem Akteninhalt" is no heading); the label
+# keeps sub-points out ("2.1. Zum Verfahrensgang" inside the assessment of evidence is no procedural history).
+#
+#   type: null       the heading opens no section
+#   fallback: true   the heading counts only where the decision has no heading of the rule's type from the other
+#                    rules (after the hierarchy rules zu_a_before_history, inside_history, erwogen_after_legal and
+#                    subtitle); a combined heading counts as both its parts
+#   max_chars        the rule may match a longer paragraph (an opening sentence instead of a heading)
+#   prefix: true     the rule matches the part of a paragraph before its first ": ", where that part is under 100
+#                    characters and the whole paragraph matches no rule but a fallback rule (prefix rules are tried
+#                    before the fallback rules; heading and text in one paragraph)
+#
+# Label signatures: 'R.' roman (I.), '#.' number (1., 1, 2.)), '#.#.' nested number (1.1., 2.2), 'R.#.' roman with
+# number (II.1.), '#.R.' number with roman (1. I.), 'A)' capital letter (A), B.), 'A) #.' letter with number, 'a)' small
+# letter (a), a.), 'a) #.' small letter with number (a. 1.), '(#)' number in brackets, 'none' no label; longer chains
+# alike ('R.#.#.', '#.#.#.'). A leading quotation mark is not read as a label ('"C) Feststellungen' is quoted).
+#
+# A label is allowed where, with the rule's title, it shows the court's own outline - not a sub-point and not the
+# outline of the BFA Bescheid quoted in the procedural history - in at least 50 decisions (10 for a fallback rule). A
+# new title form must also not split existing sections: the part it supplies may already have a heading in at most
+# 5 % of the decisions where the form occurs; a form that fails this test can only be a fallback rule. Forms that look
+# like section headings but deliberately are not are listed under `not_headings`.
+
+rules:
+  # ---- title of the whole reasoning (no section of its own)
+  - id: title.entscheidungsgruende
+    type: null
+    title: '(?:wesentliche )?(?:entscheidungsgründe|begründung)|\.entscheidungsgründe'
+    labels: [none, 'R.']
+    reason: >-
+      The title printed at the very start of the reasoning ("ENTSCHEIDUNGSGRÜNDE:", "Begründung:"). It does not divide
+      the reasoning, so it opens no section and stays the first paragraph of the reasoning.
+
+  # ---- procedural history
+  - id: procedural_history.verfahrensgang
+    type: procedural_history
+    title: '(?:verfahrens(?:gang|hergang)|gang des verfahrens)'
+    labels: ['R.', none, '#.', 'R.#.', '#.R.', 'A)']
+    reason: >-
+      The first part of the reasoning ("I. Verfahrensgang:"). No nested numbers: a nested "1.1. Zum Verfahrensgang"
+      is a sub-point of the assessment of evidence; "A) Verfahrensgang" is the court's lettered outline.
+
+  - id: procedural_history_and_findings.verfahrensgang_und_sachverhalt
+    type: procedural_history_and_findings
+    title: '(?:verfahrens(?:gang|hergang) und sachverhalt|sachverhalt und verfahrensgang|verfahrensgang, wesentlicher sachverhalt und beschwerdegründe|verfahrensgang, sachverhalt und vorbringen)'
+    labels: ['R.', none, '#.', 'R.#.', '#.R.', 'A)']
+    reason: >-
+      A procedural history heading that names the facts too ("I. Verfahrensgang und Sachverhalt"). It behaves as a
+      procedural history in the hierarchy rules and counts as findings for the templates only where the decision has an
+      assessment of evidence or a legal assessment.
+
+  # ---- considerations
+  - id: considerations.erwogen
+    type: considerations
+    title: 'das (?:bundesverwaltungsgericht|bvwg) hat (?:[^.]{0,90} )?erwogen(?:: 1\. feststellungen)?|für das (?:bundesverwaltungsgericht|bvwg) ergibt sich daraus(?: wie folgt)?'
+    labels: ['R.', none, '#.', '#.R.', 'A)']
+    reason: >-
+      Opens the court's own considerations ("II. Das Bundesverwaltungsgericht hat erwogen:", also "... über die
+      zulässige Beschwerde erwogen"). Only the court writes this sentence, so any top-level label is its own outline.
+
+  # ---- findings
+  - id: findings.feststellungen
+    type: findings
+    title: '(?:feststellungen(?: \(sachverhalt\))?|sachverhalt|sachverhaltsfeststellungen|ermittlungsergebnis \(sachverhaltsfeststellungen\)|der festgestellte sachverhalt|festgestellter sachverhalt|entscheidungswesentliche[r]? (?:sachverhalt|feststellungen))'
+    labels: ['#.', none, 'R.#.', 'R.', 'A) #.', '#.#.', 'a) #.']
+    reason: >-
+      The findings of fact ("1. Feststellungen:"). "2.1. Feststellungen" under a numbered "erwogen" is the court's
+      outline (under an open findings heading a sub-point, sub_point); "C) Feststellungen" is the quoted BFA outline.
+
+  - id: findings.sachverhalt_festgestellt
+    type: findings
+    title: '(?:folgender|der folgende) sachverhalt (?:wird festgestellt|steht fest)|festgestellt wird'
+    labels: ['#.']
+    reason: >-
+      Some templates open the findings with a numbered sentence instead of a heading ("1. Folgender Sachverhalt wird
+      festgestellt:", "1. Der folgende Sachverhalt steht fest:").
+
+  # ---- assessment of evidence
+  - id: evidence_assessment.beweiswuerdigung
+    type: evidence_assessment
+    title: '(?:beweiswürdigung|die bei der beweiswürdigung maßgebenden erwägungen)'
+    labels: ['#.', none, 'R.#.', 'R.', 'A) #.', '#.#.', 'a) #.']
+    reason: >-
+      The assessment of evidence ("2. Beweiswürdigung:"), between findings and legal assessment; labels as for the
+      findings ("D) Beweiswürdigung" is the quoted BFA Bescheid's outline).
+
+  - id: evidence_assessment.wuerdigung_der_entscheidungsgrundlagen
+    type: evidence_assessment
+    title: 'würdigung der entscheidungsgrundlagen'
+    labels: [none, 'R.']
+    reason: >-
+      Some chamber templates list the evidence under "Entscheidungsgrundlagen:" and assess it under "Würdigung der
+      Entscheidungsgrundlagen:". "Entscheidungsgrundlagen" alone is the list of evidence and is not mapped.
+
+  # ---- legal assessment
+  - id: legal_assessment.rechtliche_beurteilung
+    type: legal_assessment
+    title: '(?:rechtliche? beurteilung|rechtlich ergibt sich folgendes)'
+    labels: ['#.', none, 'R.#.', 'R.', 'A) #.', '#.#.', 'a) #.']
+    reason: >-
+      The legal assessment ("3. Rechtliche Beurteilung:"), also misspelt "Rechtlich Beurteilung"; labels as for the
+      findings ("E) Rechtliche Beurteilung" is mostly the quoted BFA Bescheid's outline).
+
+  - id: legal_assessment.rechtlich_folgt
+    type: legal_assessment
+    title: 'rechtlich folgt(?: daraus)?'
+    labels: ['#.', 'R.']
+    reason: >-
+      Some templates head the legal assessment "3. Rechtlich folgt daraus:" or "III. Rechtlich folgt:". With a nested
+      label or none it is usually a sub-point of an existing legal assessment (see the fallback rule).
+
+  - id: legal_assessment.rechtliche_erwaegungen
+    type: legal_assessment
+    title: 'rechtliche erwägungen zu(?:r| der) (?:- |– )?zulässigen (?:- |– )?beschwerde|rechtliche beurteilung \(zu spruch(?:teil|punkt) a\)'
+    labels: ['#.']
+    reason: >-
+      Chamber templates' legal assessment headings: "3. Rechtliche Erwägungen zu der zulässigen Beschwerde:", "4.
+      Rechtliche Beurteilung (Zu Spruchteil A):".
+
+  # ---- reasoning on operative part A
+  - id: ruling_a.zu_a
+    type: ruling_a
+    title: 'zum? (?:spruchteil |spruchpunkt )?a\.?\)(?:[: ].{0,90})?'
+    labels: [none, '#.', '#.#.', 'R.', 'R.#.', 'R.#.#.', '#.#.#.']
+    reason: >-
+      "Zu A)" opens the reasoning on operative part A, often with a short description ("Zu A) Abweisung der
+      Beschwerde"). A nested label ("II.5.2. Zu A)") is its place inside a numbered legal assessment.
+
+  # ---- admissibility of a revision
+  - id: revision_admissibility.zu_b
+    type: revision_admissibility
+    title: '(?:zu|zum) (?:spruchteil |spruchpunkt )?b\.?\)(?:[: ].{0,90})?|(?:zur )?\(?(?:un)?\)?zulässigkeit der revision'
+    labels: [none, '#.', '#.#.', 'R.', 'A)', 'R.#.', 'R.#.#.', '#.#.#.', '#.#. A)']
+    reason: >-
+      The reasoning on whether a revision to the VwGH is admissible, at the end of almost every decision ("Zu B)
+      Unzulässigkeit der Revision", "Zur Unzulässigkeit der Revision"). Nested labels as for "Zu A)".
+
+  # ---- operative parts A and B: suffix and dot forms
+  - id: ruling_a.spruchpunkt_a_suffix
+    type: ruling_a
+    title: '[^()]{3,80} \(spruch(?:punkt|teil) a\.?\)'
+    labels: ['#.#.']
+    reason: >-
+      The reasoning on operative part A named by a suffix ("3.2. Zur Stattgabe der Beschwerde (Spruchpunkt A)").
+
+  - id: revision_admissibility.spruchpunkt_b
+    type: revision_admissibility
+    title: '(?:zur )?\(?(?:un)?\)?zulässigkeit der revision \(spruch(?:punkt|teil) b\.?\)'
+    labels: ['#.#.', none]
+    reason: >-
+      The part on the revision named by a suffix ("3.3. Zur Unzulässigkeit der Revision (Spruchpunkt B)").
+
+  - id: revision_admissibility.zu_spruchpunkt_b_dot
+    type: revision_admissibility
+    title: 'zu (?:spruchteil |spruchpunkt )?b\.(?:[: ].{0,90})?'
+    labels: ['#.#.']
+    reason: >-
+      A dot after the letter instead of a bracket ("3.3. Zu Spruchpunkt B. (Unzulässigkeit der Revision)").
+
+  # ---- combined headings
+  - id: findings_and_evidence.feststellungen_und_beweiswuerdigung
+    type: findings_and_evidence
+    title: '(?:feststellungen(?: \(sachverhalt\))?|sachverhalt) und beweiswürdigung'
+    labels: ['#.', 'R.', none]
+    reason: >-
+      One heading for findings and assessment of evidence ("1. Feststellungen und Beweiswürdigung"). A section has one
+      type, so the combination is a type of its own; the templates count it as both parts.
+
+  - id: legal_and_evidence.rechtliche_beurteilung_und_beweiswuerdigung
+    type: legal_and_evidence
+    title: 'rechtliche beurteilung (?:und|samt) beweiswürdigung|beweiswürdigung und rechtliche beurteilung'
+    labels: ['#.', 'R.', 'R.#.']
+    reason: >-
+      One heading for assessment of evidence and legal assessment ("2. Rechtliche Beurteilung und Beweiswürdigung",
+      also "samt Beweiswürdigung"); the templates count it as both parts.
+
+  # ---- further regular forms
+  - id: procedural_history_and_findings.verfahrensgang_und_feststellungen
+    type: procedural_history_and_findings
+    title: 'verfahrens(?:gang|hergang) und feststellungen'
+    labels: ['R.']
+    reason: >-
+      "I. Verfahrensgang und Feststellungen" opens a procedural history that gives the findings too, like
+      "Verfahrensgang und Sachverhalt".
+  - id: legal_assessment.rechtliche_beurteilung_zu_a
+    type: legal_assessment
+    title: 'rechtliche beurteilung\s*[:,-–]?\s*zu (?:spruchteil |spruchpunkt )?a\.?\)?(?:[: ].{0,90})?'
+    labels: ['#.', 'R.#.']
+    reason: >-
+      "3. Rechtliche Beurteilung: Zu A)" names the legal assessment and its part on operative part A in one heading; it
+      counts as the legal assessment (otherwise the assessment of evidence runs on to "Zu B)").
+  - id: revision_admissibility.zu_b_brackets
+    type: revision_admissibility
+    title: 'zu (?:spruchteil |spruchpunkt )?b \(.{3,90}\)'
+    labels: ['#.#.']
+    reason: >-
+      No bracket or dot after B, but a description in brackets ("3.3. Zu B (Unzulässigkeit der Revision)").
+  - id: revision_admissibility.spruchpunkt_b_suffix
+    type: revision_admissibility
+    title: '[^()]{3,80} \(spruch(?:punkt|teil) b\.?\)'
+    labels: ['#.']
+    reason: >-
+      The suffix form with a single number label ("4. Unzulässigkeit der Revision (Spruchpunkt B.)").
+  - id: revision_admissibility.zu_b_dash
+    type: revision_admissibility
+    title: 'zu (?:spruchteil |spruchpunkt )?b\s*[-–]\s.{0,90}'
+    labels: [none]
+    reason: >-
+      A dash after B instead of a bracket ("Zu Spruchpunkt B - Unzulässigkeit der Revision").
+
+  # ---- fallback rules: they count only where the decision has no heading of their type
+  - id: evidence_assessment.opening_sentence
+    type: evidence_assessment
+    fallback: true
+    title: 'der beweiswürdigung liegen folgende (?:maßgebende |maßgebliche )?erwägungen zu ?grunde|(?:diese|die|die obigen|die oben angeführten) feststellungen (?:beruhen auf|ergeben sich aus|ergeben sich aufgrund|gründen (?:sich )?auf) (?:folgender|der folgenden) beweiswürdigung|das (?:bundesverwaltungsgericht|bvwg) stützt sich im hinblick auf diese feststellungen auf folgende (?:erwägungen|beweismittel)'
+    labels: [none, 'R.#.', '#.', '#.#.']
+    reason: >-
+      Some templates open the assessment of evidence with a sentence ("Der Beweiswürdigung liegen folgende maßgebende
+      Erwägungen zugrunde:"). Where there is a 'Beweiswürdigung' heading, it is only the section's first sentence.
+
+  - id: revision_admissibility.zu_b_colon
+    type: revision_admissibility
+    fallback: true
+    title: 'zu (?:spruchteil|spruchpunkt) b\s*:(?:\s.{0,90})?'
+    labels: ['#.#.']
+    reason: >-
+      A colon instead of a bracket ("3.3. Zu Spruchteil B:"); too rare for a regular rule.
+
+  - id: ruling_a.zu_a_dot
+    type: ruling_a
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?a\.(?:[ ]?[ivx]+\.?)?(?:[: ].{0,90})?'
+    labels: [none, '#.#.']
+    reason: >-
+      A dot instead of a bracket ("Zu Spruchpunkt A.", "Zu A."). The form often occurs beside a "Zu A)" heading and
+      would split its section, so a fallback.
+
+  - id: revision_admissibility.zu_b_dot_fallback
+    type: revision_admissibility
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?b\.(?:[: ].{0,90})?'
+    labels: [none]
+    reason: >-
+      "Zu Spruchpunkt B." without a label (with '#.#.' the regular rule revision_admissibility.zu_spruchpunkt_b_dot
+      applies); a fallback for the same reason as "Zu A.".
+
+  - id: ruling_a.zu_a_bare
+    type: ruling_a
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?a'
+    labels: [none, '#.#.', 'R.#.#.', '#.']
+    reason: >-
+      "Zu A." / "Zu Spruchpunkt A" with neither bracket nor text after the letter (the final dot goes with the label
+      split).
+
+  - id: revision_admissibility.zu_b_bare
+    type: revision_admissibility
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?b'
+    labels: [none, '#.#.', '#.']
+    reason: >-
+      "Zu B." / "Zu Spruchpunkt B" with neither bracket nor text after the letter, as ruling_a.zu_a_bare.
+
+  - id: legal_assessment.rechtlich_folgt_fallback
+    type: legal_assessment
+    fallback: true
+    title: 'rechtlich folgt(?: daraus)?'
+    labels: [none, '#.#.', 'R.#.', '#.#.#.#.']
+    reason: >-
+      "Rechtlich folgt (daraus):" without a label or with a nested one is usually a sub-point of an existing legal
+      assessment; where the decision has none, it is the legal assessment heading ("Rechtlich folgt:").
+
+  - id: legal_assessment.wording_variants
+    type: legal_assessment
+    fallback: true
+    title: 'rechtliche (?:beurteilung(?: .{3,90})?|würdigung)|(?:rechtlich (?:ergibt sich|folgt)|in rechtlicher hinsicht(?: ist auszuführen| folgt| ergibt sich)?)(?: daraus)?(?: aus dem festgestellten sachverhalt)?(?: folgendes| wie folgt)?'
+    labels: ['#.', '#.#.', 'R.', 'A)', 'a)', none]
+    reason: >-
+      Other wordings of the legal assessment heading ("4. Rechtliche Würdigung", "3. In rechtlicher Hinsicht folgt:").
+      A fallback, as these forms also occur inside an existing legal assessment and in the quoted BFA Bescheid.
+
+  - id: findings.festgestellt_wird_fallback
+    type: findings
+    fallback: true
+    title: 'festgestellt wird'
+    labels: [none]
+    reason: >-
+      Some templates open the findings with "Festgestellt wird:" without a label.
+
+  - id: findings.getroffene_feststellungen
+    type: findings
+    fallback: true
+    title: 'getroffene feststellungen|feststellungen und sachverhalt'
+    labels: ['#.#.', '#.']
+    reason: >-
+      Further titles of the findings ("2.1. Getroffene Feststellungen:", "1. Feststellungen und Sachverhalt:"); too rare
+      for a regular rule.
+
+  - id: findings.opening_sentence
+    type: findings
+    fallback: true
+    max_chars: 400
+    title: '.{0,120}gelangt das (?:bvwg|bundesverwaltungsgericht) .{0,120}zu (?:den )?folgenden .{0,40}feststellungen|.{0,120}steht (?:nachstehender|folgender) .{0,60}sachverhalt (?:als erwiesen )?fest'
+    labels: [none, '#.', '#.#.', 'R.#.']
+    reason: >-
+      Findings opened by a sentence of up to 400 characters ("Aufgrund der gesamten Beweisergebnisse steht folgender
+      Sachverhalt fest:"); like evidence_assessment.opening_sentence, only where there is no findings heading.
+
+  # ---- fallback rules: rarer labels of regular forms, or forms that would split an existing section
+  - id: procedural_history_and_findings.verfahrensgang_und_feststellungen_fallback
+    type: procedural_history_and_findings
+    fallback: true
+    title: 'verfahrens(?:gang|hergang) und feststellungen'
+    labels: ['#.', none]
+    reason: >-
+      As procedural_history_and_findings.verfahrensgang_und_feststellungen, with rarer labels.
+  - id: ruling_a.zu_a_brackets
+    type: ruling_a
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?a \(.{3,90}\)'
+    labels: ['#.#.', none]
+    reason: >-
+      No bracket or dot after A, but a description in brackets ("Zu A (Abweisung der Beschwerde)"); without a label the
+      form often occurs beside a "Zu A)" heading.
+  - id: revision_admissibility.zu_b_brackets_fallback
+    type: revision_admissibility
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?b \(.{3,90}\)'
+    labels: [none]
+    reason: >-
+      As revision_admissibility.zu_b_brackets, without a label.
+  - id: ruling_a.spruchpunkt_a_suffix_fallback
+    type: ruling_a
+    fallback: true
+    title: '[^()]{3,80} \(spruch(?:punkt|teil) a\.?\)'
+    labels: [none, 'R.']
+    reason: >-
+      The suffix form with a roman label or none ("II. Abweisung der Beschwerde (Spruchpunkt A.)").
+  - id: revision_admissibility.spruchpunkt_b_suffix_fallback
+    type: revision_admissibility
+    fallback: true
+    title: '[^()]{3,80} \(spruch(?:punkt|teil) b\.?\)'
+    labels: ['#.#.', 'R.']
+    reason: >-
+      As revision_admissibility.spruchpunkt_b_suffix, with labels that are rarer or would split an existing section.
+  - id: revision_admissibility.zu_b_dash_fallback
+    type: revision_admissibility
+    fallback: true
+    title: 'zu (?:spruchteil |spruchpunkt )?b\s*[-–]\s.{0,90}'
+    labels: ['R.#.#.', '#.#.']
+    reason: >-
+      As revision_admissibility.zu_b_dash, with a label ("3.3. Zu Spruchpunkt B - Unzulässigkeit der Revision").
+  - id: findings.ergebnisse_des_ermittlungsverfahrens
+    type: findings
+    fallback: true
+    title: '(?:die )?ergebnisse? des ermittlungsverfahrens(?: \(sachverhalt\))?'
+    labels: ['R.#.']
+    reason: >-
+      "II.1. Ergebnisse des Ermittlungsverfahrens (Sachverhalt)" titles the findings in some chambers; mostly it is a
+      sub-point below a findings heading.
+  - id: findings.sachverhalt_festgestellt_fallback
+    type: findings
+    fallback: true
+    title: '(?:folgender|der folgende) sachverhalt (?:wird festgestellt|steht fest)|festgestellt wird'
+    labels: [none, '#.#.']
+    reason: >-
+      "Folgender Sachverhalt steht fest:" without a label or with a nested one opens the findings; it also occurs below
+      a findings heading.
+
+  # ---- prefix rules: heading and text in one paragraph ("1. Feststellungen: Der Beschwerdeführer ist ...")
+  # The same titles as the regular rules, with the labels this form has.
+  - id: findings.feststellungen_prefix
+    type: findings
+    prefix: true
+    title: '(?:feststellungen(?: \(sachverhalt\))?|sachverhalt|sachverhaltsfeststellungen|ermittlungsergebnis \(sachverhaltsfeststellungen\)|der festgestellte sachverhalt|festgestellter sachverhalt|entscheidungswesentliche[r]? (?:sachverhalt|feststellungen))'
+    labels: ['#.']
+    reason: >-
+      "1. Feststellungen: ..." in one paragraph.
+  - id: evidence_assessment.beweiswuerdigung_prefix
+    type: evidence_assessment
+    prefix: true
+    title: '(?:beweiswürdigung|die bei der beweiswürdigung maßgebenden erwägungen)'
+    labels: ['#.']
+    reason: >-
+      "2. Beweiswürdigung: ..." in one paragraph.
+  - id: legal_assessment.rechtliche_beurteilung_prefix
+    type: legal_assessment
+    prefix: true
+    title: '(?:rechtliche beurteilung|rechtlich ergibt sich folgendes)'
+    labels: ['#.']
+    reason: >-
+      "3. Rechtliche Beurteilung: ..." in one paragraph.
+  - id: procedural_history.verfahrensgang_prefix
+    type: procedural_history
+    prefix: true
+    title: '(?:verfahrens(?:gang|hergang)|gang des verfahrens)'
+    labels: ['R.']
+    reason: >-
+      "I. Verfahrensgang: Der Beschwerdeführer stellte am ..." in one paragraph.
+  - id: ruling_a.zu_a_prefix
+    type: ruling_a
+    prefix: true
+    fallback: true
+    title: 'zum? (?:spruchteil |spruchpunkt )?a\.?\)(?:[: ].{0,90})?'
+    labels: [none, '#.#.', '#.#.#.']
+    reason: >-
+      "Zu A): Die Beschwerde ist ..." in one paragraph; a fallback, as the form often occurs beside a "Zu A)" heading.
+      Without a colon ("Zu A) Gemäß § 17 VwGVG ...") the end of the heading cannot be told, and no rule matches.
+  - id: revision_admissibility.zu_b_prefix
+    type: revision_admissibility
+    prefix: true
+    fallback: true
+    title: '(?:zu|zum) (?:spruchteil |spruchpunkt )?b\.?\)(?:[: ].{0,90})?|(?:zur )?\(?(?:un)?\)?zulässigkeit der revision'
+    labels: [none]
+    reason: >-
+      "Zu B): ..." in one paragraph, as ruling_a.zu_a_prefix.
+  - id: considerations.erwogen_prefix
+    type: considerations
+    prefix: true
+    title: 'das (?:bundesverwaltungsgericht|bvwg) hat (?:[^.]{0,90} )?erwogen(?:: 1\. feststellungen)?|für das (?:bundesverwaltungsgericht|bvwg) ergibt sich daraus(?: wie folgt)?'
+    labels: ['R.']
+    reason: >-
+      "II. Das Bundesverwaltungsgericht hat erwogen: Der Beschwerdeführer ..." in one paragraph.
+
+# Forms that look like section headings but deliberately are not (no rule matches them, or only a fallback rule).
+# Documentation only: no code reads this list.
+not_headings:
+  - form: 'Zum Verfahrensgang (nested label 1.1., or none in mid-text)'
+    reason: a sub-point of the assessment of evidence, not the procedural history
+  - form: 'Zu den Feststellungen ... / Zu den Länderfeststellungen'
+    reason: sub-points of the assessment of evidence
+  - form: '1.1. Feststellungen zum Herkunftsstaat, 1.1. Zur Person des Beschwerdeführers'
+    reason: sub-points of the findings; the findings section contains them
+  - form: 'Der Beweiswürdigung liegen folgende maßgebende Erwägungen zugrunde; Diese Feststellungen beruhen auf folgender Beweiswürdigung'
+    reason: not a heading where the decision has a 'Beweiswürdigung' heading; otherwise the fallback rule evidence_assessment.opening_sentence applies
+  - form: 'Revision (one word, also 1.1. Revision)'
+    reason: an ambiguous single word; "Zu B)" and "Unzulässigkeit der Revision" carry the section on the revision
+  - form: 'Zum Sachverhalt (label #.#.)'
+    reason: a sub-point of the assessment of evidence, like "Zum Verfahrensgang"
+  - form: 'C) Feststellungen, D) Beweiswürdigung, E) Rechtliche Beurteilung (single capital letter)'
+    reason: the outline of the BFA Bescheid quoted in the procedural history (never after "erwogen"); see the findings and evidence rules
+  - form: 'Rechtlich folgt (daraus) with label #.#. or none'
+    reason: 'usually a sub-point inside an existing legal assessment; with #. or R. it is the legal assessment heading (legal_assessment.rechtlich_folgt), and where the decision has none a fallback (legal_assessment.rechtlich_folgt_fallback)'
+  - form: 'Rechtliche Würdigung'
+    reason: as a regular heading it would often split an existing legal assessment; a fallback where the decision has none (legal_assessment.wording_variants)
+  - form: 'Zur Entscheidungsbegründung, Entscheidungsgrundlagen'
+    reason: '"reasoning of the decision" and "bases of the decision" do not name one part: some templates put findings and assessment of evidence under the first, short decisions the whole reasoning; Entscheidungsgrundlagen lists the evidence'
+  - form: 'headings opened by a quotation mark ("C) Feststellungen, "1. Feststellungen, "A) Verfahrensgang)'
+    reason: quoted from the BFA Bescheid or a previous decision; the quotation mark is not read as part of a label
+  - form: 'Sachverhalt nach Beweiswürdigung, Rechtliche Grundlagen für die Feststellung des Sachverhalts und die Beweiswürdigung, Zum Beweismaß und dem Grundsatz der freien Beweiswürdigung'
+    reason: sub-points of the findings or of the legal assessment (one chamber's template "II. Sachverhalt" > "1. Beweismittel" > "2. Sachverhalt nach Beweiswürdigung")
+  - form: 'forms in under 50 decisions: II.), (a) Zu A), I. Wesentlicher Verfahrensgang'
+    reason: below the threshold for admitting a label or title form; the decisions keep their other headings
+  - form: 'country report sub-headings (Sicherheitslage, Quellen, Medizinische Versorgung, ...), statute enumerations (1. die Schutzwürdigkeit des Privatlebens, ...)'
+    reason: content inside the findings or the legal assessment, not structure of the reasoning

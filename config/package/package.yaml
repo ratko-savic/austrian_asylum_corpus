@@ -1,0 +1,15 @@
+# The data package: one JSON record per decision, with everything the stages found in it, a table with one row per
+# record, the download candidates, examples and the record schema. The inputs are the outputs of stages 02 to 09 in
+# the data folder. The README, LICENSE and CITATION.cff of the data are written by hand.
+out: package                       # under the data folder; scripts/10_package.py --out puts it elsewhere
+
+# The record files: the BVwG one per year of decision, each higher court one file.
+files:
+  bvwg: "bvwg_{year}.jsonl.gz"
+  vwgh: vwgh.jsonl.gz
+  vfgh: vfgh.jsonl.gz
+
+# examples.json, pretty-printed: for each [outcome, protection outcome], the shortest merits decision with one outcome
+# unit of it that a VwGH or VfGH decision reviews (the first: a VwGH decision); then the VwGH decision that reviews the
+# first of them (not an interim one where there is another).
+examples: [[dismissed, none], [upheld, asylum], [upheld, subsidiary_protection], [remanded, remanded]]

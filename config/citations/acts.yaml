@@ -1,0 +1,338 @@
+# Acts recognised in provision citations (stage 06). How the chains before them are read:
+# src/asylum_corpus/citations/statutes.py.
+#
+# A provision citation is a chain of designations ("§ 3 Abs. 1 und § 8 Abs. 1") followed by an act named here
+# (`aliases`, as printed, case-sensitive); `act` is the normalized name used in `normalized` ("AsylG 2005 § 3 Abs. 1"),
+# `type` the citation type of the schema. An alias belongs to one act only; the longest alias wins. A misspelling
+# (`misspelling: true`) is an alias of the act it names; the citation's text stays verbatim.
+#
+# The first block lists the acts of asylum, aliens and procedural law, the constitution and other national acts the
+# decisions apply, the ECHR, the EU treaties and asylum acts, and the GFK and KRK. The others are acts cited after a
+# provision in at least 100 decisions (`decisions`: the BVwG decisions of the corpus in which one of the entry's aliases
+# is the cited act of a provision citation, counted on the output of stage 06), or acts needed to read another
+# correctly: with "AsylG 1997" and "AsylG 1991", "§ 7 AsylG 1997" is not read as "AsylG § 7". "AsylG" without a year
+# stays "AsylG": both the AsylG 1997 and the AsylG 2005 apply in the period; likewise "FrG" (Fremdengesetz 1992 or
+# 1997). The last block adds full titles and other spellings of these acts, and two acts named only so, by the same
+# threshold.
+
+# Every alias is also matched in the spelling with a capital "I" printed for a lower-case "l" ("§ 35 AsyIG 2005"), as
+# a misspelling of the same act (one "l" per variant; a variant that is itself an alias, or that two acts would share,
+# is left out). Generated, not listed: the confusion is typographic and the same for every alias.
+capital_i_for_l: true
+
+acts:
+  - act: 'AsylG 2005'
+    type: national_legislation
+    aliases: ['AsylG 2005', 'Asylgesetz 2005', 'Asylgesetzes 2005']
+  - act: 'AsylG'
+    type: national_legislation
+    aliases: ['AsylG', 'Asylgesetz', 'Asylgesetzes']
+  - act: 'FPG'
+    type: national_legislation
+    aliases: ['FPG', 'Fremdenpolizeigesetz 2005', 'Fremdenpolizeigesetzes 2005']
+  - act: 'BFA-VG'
+    type: national_legislation
+    aliases: ['BFA-VG', 'BFA-Verfahrensgesetz', 'BFA-Verfahrensgesetzes']
+  - act: 'VwGVG'
+    type: national_legislation
+    aliases: ['VwGVG', 'Verwaltungsgerichtsverfahrensgesetz', 'Verwaltungsgerichtsverfahrensgesetzes']
+  - act: 'AVG'
+    type: national_legislation
+    aliases: ['AVG']
+  - act: 'B-VG'
+    type: national_legislation
+    aliases: ['B-VG', 'Bundes-Verfassungsgesetz', 'Bundes-Verfassungsgesetzes']
+  - act: 'VfGG'
+    type: national_legislation
+    aliases: ['VfGG']
+  - act: 'VwGG'
+    type: national_legislation
+    aliases: ['VwGG']
+  - act: 'NAG'
+    type: national_legislation
+    aliases: ['NAG']
+  - act: 'StGB'
+    type: national_legislation
+    aliases: ['StGB']
+  - act: 'ABGB'
+    type: national_legislation
+    aliases: ['ABGB']
+  - act: 'StbG'
+    type: national_legislation
+    aliases: ['StbG']
+  - act: 'VStG'
+    type: national_legislation
+    aliases: ['VStG']
+  - act: 'ZustG'
+    type: national_legislation
+    aliases: ['ZustG']
+  - act: 'EGVG'
+    type: national_legislation
+    aliases: ['EGVG']
+  - act: 'BVwGG'
+    type: national_legislation
+    aliases: ['BVwGG']
+  - act: 'GVG-B 2005'
+    type: national_legislation
+    aliases: ['GVG-B 2005']
+  - act: 'AsylG-DV 2005'
+    type: national_legislation
+    aliases: ['AsylG-DV 2005']
+  - act: 'IFG'
+    type: national_legislation
+    aliases: ['IFG']
+  - act: 'BVG'
+    type: national_legislation
+    aliases: ['Bundesverfassungsgesetz']
+  - act: 'BVG-Rassendiskriminierung'
+    type: national_legislation
+    aliases: ['BVG-Rassendiskriminierung']
+  - act: 'EMRK'
+    type: echr_provision
+    aliases: ['EMRK', 'MRK']
+  - act: 'ZPEMRK'
+    type: echr_provision
+    aliases: ['ZPEMRK']
+  - act: '6. ZPEMRK'
+    type: echr_provision
+    aliases: ['6. ZPEMRK']
+  - act: '13. ZPEMRK'
+    type: echr_provision
+    aliases: ['13. ZPEMRK']
+  - act: 'GRC'
+    type: eu_legislation
+    aliases: ['GRC', 'GRCh', 'Grundrechtecharta', 'Charta']
+  - act: 'AEUV'
+    type: eu_legislation
+    aliases: ['AEUV']
+  - act: 'EUV'
+    type: eu_legislation
+    aliases: ['EUV']
+  - act: 'Statusrichtlinie'
+    type: eu_legislation
+    aliases: ['Statusrichtlinie', 'Status-RL', 'StatusRL', 'Qualifikationsrichtlinie']
+  - act: 'Verfahrensrichtlinie'
+    type: eu_legislation
+    aliases: ['Verfahrensrichtlinie', 'Verfahrens-RL']
+  - act: 'Aufnahmerichtlinie'
+    type: eu_legislation
+    aliases: ['Aufnahmerichtlinie']
+  - act: 'Rückführungsrichtlinie'
+    type: eu_legislation
+    aliases: ['Rückführungsrichtlinie']
+  - act: 'Dublin III-VO'
+    type: eu_legislation
+    aliases: ['Dublin III-VO', 'Dublin-III-VO', 'Dublin III-Verordnung', 'Dublin-III-Verordnung', 'Dublin-Verordnung', 'Dublin-VO']
+  - act: 'StatusVO'
+    type: eu_legislation
+    aliases: ['StatusVO', 'Status-VO']
+  - act: 'AMM-VO'
+    type: eu_legislation
+    aliases: ['AMM-VO']
+  - act: 'AVVO'
+    type: eu_legislation
+    aliases: ['Asylverfahrensverordnung']
+  - act: 'Eurodac-VO'
+    type: eu_legislation
+    aliases: ['Eurodac-VO']
+  - act: 'GFK'
+    type: international_treaty
+    aliases: ['GFK', 'Genfer Flüchtlingskonvention', 'Flüchtlingskonvention']
+  - act: 'KRK'
+    type: international_treaty
+    aliases: ['KRK', 'UN-Kinderrechtskonvention']
+
+  # ---------------------------------------------------------------- cited in at least 100 decisions, or needed
+  - act: 'AsylG 1997'
+    type: national_legislation
+    aliases: ['AsylG 1997', 'Asylgesetz 1997', 'Asylgesetzes 1997']
+    decisions: 17830
+    reason: so that "§ 7 AsylG 1997" is this act, not "AsylG § 7"
+  - act: 'AsylG 1991'
+    type: national_legislation
+    aliases: ['AsylG 1991', 'Asylgesetz 1991', 'Asylgesetzes 1991']
+    decisions: 2099
+    reason: so that "§ 7 AsylG 1991" is this act, not "AsylG § 7"
+  - act: 'FrG 1997'
+    type: national_legislation
+    aliases: ['FrG 1997', 'FremdenG 1997', 'Fremdengesetz 1997', 'Fremdengesetzes 1997']
+    decisions: 3714
+  - act: 'FrG'
+    type: national_legislation
+    aliases: ['FrG', 'FremdenG', 'Fremdengesetz', 'Fremdengesetzes']
+    decisions: 7469
+  - act: 'FPG'
+    type: national_legislation
+    aliases: ['Fremdenpolizeigesetz', 'Fremdenpolizeigesetzes', 'FrPolG 2005', 'FrPolG']
+    decisions: 7574
+  - act: 'IntG'
+    type: national_legislation
+    aliases: ['IntG', 'Integrationsgesetz', 'Integrationsgesetzes']
+    decisions: 8836
+  - act: 'BFA-G'
+    type: national_legislation
+    aliases: ['BFA-G', 'BFA-Einrichtungsgesetz', 'BFA-Einrichtungsgesetzes']
+    decisions: 10273
+  - act: 'StGB'
+    type: national_legislation
+    aliases: ['Strafgesetzbuch', 'Strafgesetzbuches', 'Strafgesetzbuchs']
+    decisions: 6752
+  - act: 'SMG'
+    type: national_legislation
+    aliases: ['SMG', 'Suchtmittelgesetz', 'Suchtmittelgesetzes']
+    decisions: 2433
+  - act: 'ASVG'
+    type: national_legislation
+    aliases: ['ASVG']
+    decisions: 2207
+  - act: 'ZPO'
+    type: national_legislation
+    aliases: ['ZPO']
+    decisions: 2123
+  - act: 'StPO'
+    type: national_legislation
+    aliases: ['StPO']
+    decisions: 1366
+  - act: 'JGG'
+    type: national_legislation
+    aliases: ['JGG']
+    decisions: 819
+  - act: 'IPRG'
+    type: national_legislation
+    aliases: ['IPRG']
+    decisions: 567
+  - act: 'AuslBG'
+    type: national_legislation
+    aliases: ['AuslBG']
+    decisions: 929
+  - act: 'ZustG'
+    type: national_legislation
+    aliases: ['ZustellG', 'Zustellgesetz', 'Zustellgesetzes']
+    decisions: 1200
+  - act: 'SPG'
+    type: national_legislation
+    aliases: ['SPG']
+    decisions: 2138
+  - act: 'EO'
+    type: national_legislation
+    aliases: ['EO']
+    decisions: 27000
+  - act: 'UG'
+    type: national_legislation
+    aliases: ['UG 2002', 'Universitätsgesetz 2002', 'Universitätsgesetzes 2002']
+    decisions: 1815
+  - act: 'SchOG'
+    type: national_legislation
+    aliases: ['SchOG']
+    decisions: 1000
+  - act: 'HStV'
+    type: national_legislation
+    aliases: ['HStV', 'Herkunftsstaaten-Verordnung', 'Herkunftsstaatenverordnung']
+    decisions: 5357
+  - act: 'AVG'
+    type: national_legislation
+    aliases: ['Allgemeines Verwaltungsverfahrensgesetz 1991', 'Allgemeinen Verwaltungsverfahrensgesetzes 1991',
+              'Allgemeines Verwaltungsverfahrensgesetz', 'Allgemeinen Verwaltungsverfahrensgesetzes', 'AVG 1991']
+    decisions: 2863
+  - act: 'AufenthG'
+    type: other
+    aliases: ['AufenthG']
+    decisions: 582
+    note: German Aufenthaltsgesetz (foreign law, type other)
+
+  # ---------------------------------------------------------------- misspellings (mapped to the act; the text stays verbatim)
+  - act: 'AsylG 2005'
+    type: national_legislation
+    aliases: ['AslyG 2005', 'Asyl 2005']
+    decisions: 2075
+    misspelling: true
+  - act: 'AsylG'
+    type: national_legislation
+    aliases: ['AslyG']
+    decisions: 1088
+    misspelling: true
+  - act: 'AsylG 1997'
+    type: national_legislation
+    aliases: ['AslyG 1997']
+    decisions: 4
+    reason: correctness - with "AslyG" admitted, "§ 8 AslyG 1997" would otherwise be normalized as "AsylG § 8"
+    misspelling: true
+  - act: 'BFA-VG'
+    type: national_legislation
+    aliases: ['BFAVG']
+    decisions: 919
+    misspelling: true
+
+  # ---------------------------------------------------------------- full titles and other spellings
+  # Each alias is cited after a provision in at least 100 decisions, with an optional "der" / "des" between
+  # the chain and the title. Left out: forms below the threshold, and "Strafprozessordnung" and
+  # "Staatsbürgerschaftsgesetzes" without a year, which in the decisions mostly name foreign acts in country reports.
+  - act: 'VwGG'
+    type: national_legislation
+    aliases: ['Verwaltungsgerichtshofgesetzes 1985', 'Verwaltungsgerichtshofgesetz 1985', 'Verwaltungsgerichtshofgesetz']
+  - act: 'BVwGG'
+    type: national_legislation
+    aliases: ['Bundesverwaltungsgerichtsgesetz', 'Bundesverwaltungsgerichtsgesetzes']
+  - act: 'StbG'
+    type: national_legislation
+    aliases: ['Staatsbürgerschaftsgesetzes 1985']
+  - act: 'NAG'
+    type: national_legislation
+    aliases: ['Niederlassungs- und Aufenthaltsgesetz', 'NAG 2005']
+  - act: 'EGVG'
+    type: national_legislation
+    aliases: ['Einführungsgesetz zu den Verwaltungsverfahrensgesetzen 2008']
+  - act: 'BVG'
+    type: national_legislation
+    aliases: ['Bundesverfassungsgesetzes']
+  - act: 'ASVG'
+    type: national_legislation
+    aliases: ['Allgemeines Sozialversicherungsgesetz', 'Allgemeinen Sozialversicherungsgesetzes']
+  - act: 'AuslBG'
+    type: national_legislation
+    aliases: ['Ausländerbeschäftigungsgesetz']
+  - act: 'SchOG'
+    type: national_legislation
+    aliases: ['Schulorganisationsgesetz']
+  - act: 'EO'
+    type: national_legislation
+    aliases: ['Exekutionsordnung']
+  - act: 'EMRK'
+    type: echr_provision
+    aliases: ['Europäischen Menschenrechtskonvention', 'Konvention zum Schutze der Menschenrechte und Grundfreiheiten',
+              'Europäischen Konvention zum Schutze der Menschenrechte und Grundfreiheiten',
+              'Europäische Menschenrechtskonvention']
+  - act: 'GFK'
+    type: international_treaty
+    aliases: ['Konvention über die Rechtsstellung der Flüchtlinge', 'Genfer Konvention', 'Genfer Abkommens']
+  - act: 'Protokoll über die Rechtsstellung der Flüchtlinge'
+    type: international_treaty
+    aliases: ['Protokolls über die Rechtsstellung der Flüchtlinge']
+    note: the 1967 Protocol ("Art. 1 Abs. 2 des Protokolls über die Rechtsstellung der Flüchtlinge"); the decisions use
+      no abbreviation for it, so its title is the normalized name
+  - act: 'GRC'
+    type: eu_legislation
+    aliases: ['Grundrechte-Charta', 'EU-Grundrechtecharta']
+  - act: 'AEUV'
+    type: eu_legislation
+    aliases: ['Vertrags über die Arbeitsweise der Europäischen Union']
+  - act: 'Statusrichtlinie'
+    type: eu_legislation
+    aliases: ['Status-Richtlinie']
+  - act: 'Verfahrensrichtlinie'
+    type: eu_legislation
+    aliases: ['Asylverfahrensrichtlinie']
+  - act: 'Rückführungsrichtlinie'
+    type: eu_legislation
+    aliases: ['Rückführungs-RL', 'RückführungsRL']
+  - act: 'Dublin III-VO'
+    type: eu_legislation
+    aliases: ['Dublin III VO', 'Dublin III Verordnung']
+  - act: 'Dublin II-VO'
+    type: eu_legislation
+    aliases: ['Dublin II-VO', 'Dublin II-Verordnung', 'Dublin II VO', 'Dublin-II-VO', 'Dublin-II-Verordnung',
+              'Dublin II Verordnung']
+    note: Regulation (EC) No 343/2003, the predecessor of the Dublin III-VO
+  - act: 'StatusVO'
+    type: eu_legislation
+    aliases: ['Statusverordnung']

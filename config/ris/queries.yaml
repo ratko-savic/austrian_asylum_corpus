@@ -1,0 +1,108 @@
+# What is retrieved from RIS: the BVwG candidate inventory and the pool of VwGH/VfGH decisions searched for
+# decisions connected to it. Whether a candidate belongs to the corpus is decided later, in the filtering stage,
+# because RIS queries cannot exclude.
+
+bvwg_inventory:
+  application: Bvwg
+  start_date: '2014-01-01'
+  # The day the inventory was taken; null means today.
+  end_date: '2026-09-30'
+  # A slice with more hits is split into smaller date ranges, so that RIS is never paged deeply (slow).
+  max_hits_per_slice: 1500
+
+  # Included categories of the corpus (id: label).
+  categories:
+    refugee_status: Refugee status / asylum
+    subsidiary_protection: Subsidiary protection
+    inadmissibility_and_responsibility: Admissibility and responsibility for an application for international
+      protection, including Dublin-type proceedings
+    subsequent_applications: Subsequent applications
+    withdrawal_refugee_status: Withdrawal, cessation or revocation of refugee status
+    withdrawal_subsidiary_protection: Withdrawal, cessation or revocation of subsidiary protection
+    family_procedure_asylg_34: Family procedures under § 34 AsylG
+    historical_family_entry_asylg_35: Historical protection-linked family-entry proceedings under § 35 AsylG
+    protection_linked_family_reunification_nag_46a: Protection-linked family reunification under § 46a NAG
+    eu_pact_2026: EU Pact regulations (law since 12 June 2026)
+
+  # How a decision is found and attributed to a category. A `norm` matches one section of the RIS norm field
+  # exactly ("AsylG 2005 §3" does not match §34 or §35, §4 does not match §4a); all norms go to RIS as one union
+  # query. A `params` indicator is a query of its own.
+  # Not queried: the whole AsylG (it adds only decisions on excluded matters, e.g. §§ 55 and 57), the old Asylum
+  # Act (AsylG 1997), and procedural provisions (BFA-VG) on their own.
+  indicators:
+  - id: asylg_3
+    category: refugee_status
+    norm: AsylG 2005 §3
+  - id: asylg_8
+    category: subsidiary_protection
+    norm: AsylG 2005 §8
+  - id: asylg_4
+    category: inadmissibility_and_responsibility
+    norm: AsylG 2005 §4
+  - id: asylg_4a
+    category: inadmissibility_and_responsibility
+    norm: AsylG 2005 §4a
+  - id: asylg_5
+    category: inadmissibility_and_responsibility
+    norm: AsylG 2005 §5
+  - id: avg_68_international_protection
+    category: subsequent_applications
+    # AVG §68 together with the keywords, not the keyword Folgeantrag alone, which also finds mere mentions.
+    params:
+      Norm: AVG §68
+      Suchworte: '"internationalen Schutz" ODER Folgeantrag'
+    note: Rejection of a repeated application because the matter has already been decided.
+  - id: asylg_7
+    category: withdrawal_refugee_status
+    norm: AsylG 2005 §7
+  - id: asylg_9
+    category: withdrawal_subsidiary_protection
+    norm: AsylG 2005 §9
+  - id: asylg_34
+    category: family_procedure_asylg_34
+    norm: AsylG 2005 §34
+  - id: asylg_35
+    category: historical_family_entry_asylg_35
+    norm: AsylG 2005 §35
+  - id: nag_46a
+    category: protection_linked_family_reunification_nag_46a
+    norm: NAG §46a
+  - id: statusvo
+    category: eu_pact_2026
+    norm: StatusVO
+    note: Regulation (EU) 2024/1347 - refugee status, subsidiary protection, withdrawal.
+  - id: asylvfvo
+    category: eu_pact_2026
+    norm: AsylVfVO
+    note: Regulation (EU) 2024/1348 - asylum procedure, including admissibility and subsequent applications.
+  - id: ammvo
+    category: eu_pact_2026
+    norm: AMMVO
+    note: Regulation (EU) 2024/1351 - responsibility of the Member State (successor of Dublin III).
+
+  # Groups kept apart from the main corpus. The first matching rule wins; a rule matches where any of its keys holds
+  # (decided from the date, one of the norms, or exactly these indicators). The files go to raw/bvwg/<partition>/.
+  partitions:
+    default: main
+    rules:
+    - id: new_law_2026
+      label: New legal regime since 12 June 2026 (kept separate)
+      decision_date_from: '2026-06-12'
+      norms:
+      - StatusVO
+      - AsylVfVO
+      - AMMVO
+      - NAG §46a
+    - id: subsequent_applications_avg68
+      label: Repeated applications found only via AVG §68 (kept separate)
+      only_indicators:
+      - avg_68_international_protection
+
+# All VwGH and VfGH decisions whose text mentions the BVwG. A BVwG decision cannot name its own later review, so the
+# connected decisions are found from the other side, by matching this pool locally against the inventory.
+connected_pool:
+  params:
+    Suchworte: Bundesverwaltungsgericht* ODER BVwG
+  start_date: '2014-01-01'
+  # The day the pool was taken; null means today.
+  end_date: '2026-10-10'

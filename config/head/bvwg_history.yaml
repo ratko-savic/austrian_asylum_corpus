@@ -1,0 +1,475 @@
+# The case history of a BVwG decision (stage 04). Code: src/asylum_corpus/head/history.py.
+#
+# Read from the procedural history (the coarse sections of stage 05: procedural_history,
+# procedural_history_and_findings, findings; without them, the reasoning outside the court's assessment) and, for the hearing, from the head:
+#   court_decisions earlier decisions of a court in the case (BVwG, AsylGH, UBAS, VwGH, VfGH) named with their date
+#   hearings       the court's oral hearing: held / not held / unknown in this proceeding (its dated events are the
+#                  evidence)
+#   interviews     the interpreter at the police first questioning, the BFA interview and the court hearing
+#   appellant_gender  the appellant's gender
+#   new_law        whether the proceeding runs under the law in force since 12 June 2026, from the applications
+# Every event records the rule, the part and the span it was read from. Nothing is inferred beyond the text: a date is
+# taken only where the sentence binds it to the event. Persons are not told apart: in a joined decision the events of
+# all appellants are listed together.
+#
+# The applications are read for the label new_law only, where only the latest date matters. Each rule's reason names
+# the forms it covers.
+#
+# The event, interview and not-held patterns are applied per sentence (the splitter below), the head, pronouncement
+# and gender patterns to whole parts; case-sensitive unless they say (?i). {NAME} is a macro from
+# `macros`, expanded before compiling; a rule's date group is "date", or "date2" / "date3" in its further alternatives
+# (one or several dates).
+parts: [procedural_history, procedural_history_and_findings, findings]
+# without any of the parts above: the reasoning, minus these subsections (the court's assessment quotes the law and
+# case law, not the case history)
+fallback_without: [legal_assessment, ruling_a, revision_admissibility, evidence_assessment]
+# parts read for the hearing and its interpreter, besides the head: the court reports its hearing also in the
+# assessment of evidence
+hearing_parts: [procedural_history, procedural_history_and_findings, findings, evidence_assessment]
+# parts read for a hearing that was not held: the court gives the reason in its legal assessment, its assessment of
+# evidence ("Eine Verhandlung kann daher im gegenständlichen Fall unterbleiben") or the part on the admissibility of a
+# revision ("Eine Beschwerdeverhandlung konnte gem. § 21 Abs. 6a BFA-VG unterbleiben"); without these parts: the whole
+# reasoning
+no_hearing_parts: [legal_assessment, ruling_a, considerations, evidence_assessment, revision_admissibility]
+# the combined types findings_and_evidence and legal_and_evidence are in none of the lists above
+
+sentences:
+  # a period, "!", "?" or ";" ends a sentence when an upper-case word or a numbered point follows, a period not after
+  # these abbreviations, a number (unless a four-digit year ends the sentence) or an initial; a line break always ends
+  # one. "GZen." would end the sentence before its verb ("Erkenntnis des AsylGH vom 05.11.2012 zu GZen. … abgewiesen")
+  abbreviations: [Zl, Zlen, GZ, Gz, Abs, Z, lit, gem, vgl, bzw, Nr, Art, ua, u.a, iVm, idF, idgF, Dr, Mag, Mag.a, Ing,
+                  Univ, Prof, mj, minderj, geb, StA, RA, ca, Mio, Tel, Str, Kap, Pkt, bzgl, betr, insb, Fz, FZ, AZ, Zahl,
+                  OZ, AS, Bd, Hr, Fr, Hrn, ff, leg, cit, zB, z.B, d.h, dh, iSd, iSv, usw, sog, ggst, gegst, St, Reg,
+                  Slg, VwSlg, BGBl, lt, It, Ziff, Spruchpkt, Sp, Pt, Rz, Rn, EB, RV, Erl, hg, idR, uU, aaO,
+                  GZen, Gzen, Zln]
+
+macros:
+  MONTH: '(?:Jänner|Januar|Feber|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)'
+  YEAR: '(?:19[89]\d|20[0-3]\d)'
+  # one date, any precision: day (12.03.2018, 12. März 2018), month (März 2018, Anfang März 2018), season or year
+  # (Sommer 2015, Jahr 2015), anonymised (XXXX, XXXX 2018, XXXX .09.2022); a bare year is no date
+  DATE: '(?:\d{1,2}\.\s?\d{1,2}\.\s?{YEAR}|\d{1,2}\.\s?{MONTH}\s+{YEAR}|(?:(?:Anfang|Mitte|Ende)\s+)?{MONTH}\s+{YEAR}|(?:Frühjahr|Frühling|Sommer|Herbst|Winter)\s+{YEAR}|(?:(?:dem\s+)?Jahr(?:e)?\s+){YEAR}|XXXX(?:\s?\.?\s?\d{1,2}\s?\.\s?{YEAR}|\s?\.\s?{YEAR}|\s+{YEAR})?)'
+  # a day date or an anonymised one (what "am" takes)
+  DAY: '(?:\d{1,2}\.\s?\d{1,2}\.\s?{YEAR}|\d{1,2}\.\s?{MONTH}\s+{YEAR}|XXXX(?:\s?\.?\s?\d{1,2}\s?\.\s?{YEAR}|\s?\.\s?{YEAR}|\s+{YEAR})?)'
+  # several dates in a row ("vom 29.10.2018 sowie vom 21.05.2019", "am 16. und 17.07.2019", "1.) 07.02.2018, 2.) ...")
+  DATES: '(?:\d{1,2}\.\s?(?:,|und|sowie)\s?)*{DATE}(?:\s?(?:,|und|sowie|bzw\.?)\s?(?:(?:am|vom)\s+)?(?:\(?\d\.?\)\s?)?{DATE})*'
+  # foreign states and Austria, and an application for international protection
+  FOREIGN: '(?:Italien|Ungarn|Griechenland|Bulgarien|Kroatien|Slowenien|Deutschland|(?:der\s+)?Schweiz|Rumänien|Polen|Frankreich|Spanien|Schweden|Norwegen|(?:den\s+)?Niederlanden?|Belgien|Dänemark|Finnland|Tschechien|(?:der\s+)?Tschechischen\s+Republik|(?:der\s+)?Slowakei|Großbritannien|England|Litauen|Lettland|Estland|Malta|Zypern|Portugal|Luxemburg|Irland|Island|Liechtenstein|(?:der\s+)?Türkei|Serbien|Nordmazedonien|Mazedonien|Bosnien\w*|Albanien|Montenegro|Kosovo|(?:der\s+)?Ukraine|Weißrussland|Belarus|Russland|(?:der\s+)?Russischen\s+Föderation|(?:dem\s+)?Iran|Libyen|Tunesien|Marokko|Algerien|Ägypten|Jordanien|(?:dem\s+)?Libanon)'
+  AT: '(?:in\s+(?:das\s+)?(?:österreichische\s+)?Bundesgebiet|ins\s+(?:österreichische\s+)?Bundesgebiet|in\s+das\s+(?:Hoheits|Staats)gebiet\s+(?:Österreichs|der\s+Republik\s+Österreich)|nach\s+Österreich|in\s+Österreich|in\s+die\s+Republik\s+Österreich)'
+  APP: '(?:(?:ein|eine|einen|einem|den|dem|die|der|ihren|seinen|ihre|seine|gegenständliche[nmr]?|verfahrensgegenständliche[nmr]?|vorliegende[nmr]?|ggst\.?|zweite[nmr]?|dritte[nmr]?|vierte[nmr]?|neuerliche[nmr]?|weitere[nmr]?|erste[nmr]?|jeweils|abermals|erneut|nunmehr|nochmals)\s+){0,4}(?:\(\w+\)\s+)?(?:(?:\(Folge-?\)\s?)?Antr(?:ag|äge|ägen|ages|ags)(?:\s+(?:des|der|von)\s+(?:\w+\s+){0,2}?(?:BF\s?\d*|bP\s?\d*|\w*[Bb]eschwerdeführ\w*|beschwerdeführende\w*(?:\s+Partei\w*)?))?\s+auf\s+(?:Gewährung\s+(?:von\s+)?|Zuerkennung\s+(?:des\s+Status\s+\w+\s+)?)?(?:internationale[nmr]?\s+Schutz|Asyl)|Antrag,?\s+(?:ihm|ihr|ihnen)\s+(?:in\s+Österreich\s+)?(?:internationalen\s+Schutz|Asyl)\s+zu\s+gewähren|(?:die\s+)?Gewährung\s+(?:von\s+)?internationale[nm]\s+Schutze?s?|Asylantr\w*|Folgeantr\w*|\(Folge-?\)\s?Antr\w*)'
+  # gaps that may not cross into another event: GA and GV in the application rules, GC in the court-decision rules,
+  # GH in the hearing rules
+  GA: '(?:(?!Bescheid|Erkenntnis|Beschluss|Beschwerde\b|Einvernahme|Erstbefragung|\breiste)[^;]){0,180}?'
+  GV: '(?:(?!\b(?:am|vom|wo|ein|nachdem|bevor|und|sowie)\b|Bescheid|Erkenntnis|Beschluss|Beschwerde\b|Einvernahme|Erstbefragung|reiste)[^;]){0,60}?'
+  GC: '(?:(?!Bescheid|Beschwerde\b|Schriftsatz|Antr[aä]g|zugestellt|Urteil)[^;]){0,80}?'
+  GH: '(?:(?!Bescheid|Erkenntnis|Beschluss|Antr[aä]g)[^;]){0,140}?'
+
+# words that refer to the appellant(s), a relative or witness, and a representation phrase ("für diesen", "als
+# gesetzliche Vertreterin"): a sentence about a relative or witness is skipped unless it is about the appellant too
+appellant: '\b(?:BF\d*|bP\d*|BF\s\d|Beschwerdeführ\w*|beschwerdeführende\w*|(?:Erst|Zweit|Dritt|Viert|Fünft|Sechst|Siebt|Siebent|Acht|Neunt|Zehnt)beschwerdeführ\w*|Antragsteller\w*|Asylwerber\w*|Revisionswerber\w*|Wiedereinsetzungswerber\w*)\b'
+appellant_strict: '\b(?:BF\s?\d*|bP\s?\d*|Beschwerdeführ\w*|beschwerdeführende\w*|(?:Erst|Zweit|Dritt|Viert|Fünft|Sechst|Siebt|Siebent|Acht|Neunt|Zehnt)beschwerdeführ\w*|(?:er|sie|ihm|ihr|ihn|seine[rnm]?|ihre[rnm]?)\b)'
+# relatives and witnesses, also former spouses ("betreffend die Exgattin")
+relative: '\b(?:Ex-?(?:[Gg]attin|[Gg]atte\w*|[Ff]rau|[Mm]ann\w*|[Ee]hefrau|[Ee]hemann\w*|[Ee]hegatt\w*|[Pp]artner\w*|[Ll]ebensgefährt\w*)|geschiedene\w*\s+(?:Ehe)?(?:[Ff]rau|[Mm]ann\w*|Gatt\w*)|Bruder|Brüder|Schwester\w*|Vater|Väter|Mutter|Ehemann\w*|Ehefrau|Ehegatt\w*|Gattin|Gatte\w*|Sohn|Söhne|Tochter|Töchter|Onkel|Tante|Cousin\w*|Neffe\w*|Nichte|Großvater|Großmutter|Schwager|Schwägerin|Bezugsperson|Zeuge\w*|Zeugin\w*|Lebensgefährt\w*|Verlobte\w*|Kindesvater|Kindesmutter|Eltern)\b'
+# a relative of the appellant: also the spouse, the partner and the child's parents
+relative_of_appellant: '\b(?:Bruder|Schwester|Vater|Mutter|Ehemann|Ehefrau|Ehegatt\w*|Gattin|Gatte|Lebensgefährt\w*|Kindesvater|Kindesmutter|Sohn|Tochter|Onkel|Tante|Cousin\w*|Bezugsperson|Eltern)\s+(?:des|der)\s+(?:minderjährigen\s+)?(?:BF\d*|bP\d*|Beschwerdeführ\w*|beschwerdeführende\w*)'
+# a relative of a numbered co-appellant ("Am 19.10.2011 reiste der Ehegatte der Erstbeschwerdeführerin / Vater des
+# Zweitbeschwerdeführers … ein") is someone else only where no appellant is named before it in the sentence ("Die
+# Erstbeschwerdeführerin und der Zweitbeschwerdeführer, es handelt sich um die Eltern der Drittbeschwerdeführerin …,
+# stellten am …" are appellants themselves); not a son or daughter: a child of an appellant is mostly an appellant too
+# (born later and joined to the family's case)
+relative_of_coappellant: '\b(?:Bruder|Schwester|Vater|Mutter|Ehemann|Ehefrau|Ehegatt\w*|Gattin|Gatte|Lebensgefährt\w*|Kindesvater|Kindesmutter|Onkel|Tante|Cousin\w*|Bezugsperson|Eltern)\s+(?:des|der)\s+(?:minderjährigen\s+)?(?:BF\s?\d+|bP\s?\d+|(?:Erst|Zweit|Dritt|Viert|Fünft|Sechst|Siebt|Siebent|Acht|Neunt|Zehnt)beschwerdeführ\w*)'
+# a relative clause about a relative ("… die Tochter von XXXX (Mutter), somalische Staatsangehörige, welcher mit
+# Bescheid des BFA vom … der Status … zuerkannt wurde"; "… des XXXX (Bezugsperson …), …, dem im Bundesgebiet mit Bescheid
+# …"): the event belongs to the relative where such a clause begins after the last relative named, and that after the
+# last mention of the appellant
+relative_pronoun: ',\s*(?:welche[rmns]?|dem|deren|dessen)\s'
+# a date the text corrects right after it ("datiert mit 15.05.2014 (wohl richtig: 15.04.2014)"): the correction is
+# read instead
+date_correction: '\s*\(\s*(?:wohl\s+|gemeint\s+)?(?:richtig(?:erweise)?|gemeint|korrekt|recte)\s*:?\s*(?P<date>{DAY})\s*\)'
+# a representation: also "für sich und ihre Kinder", "als dessen gesetzliche Vertretung" and "vertreten durch die
+# Eltern"
+representation: '\bvertreten\s+durch\s+(?:die|den|ihre|seine)\s+(?:Eltern|Mutter|Vater|Kindesmutter|Kindesvater)\b|\bals\s+(?:dessen|deren|seine|ihre)\s+gesetzliche\w*\s+Vertret|\b[Ff]ür\s+(?:sich\s+(?:und|sowie)\s+)?(?:ihn|sie|diesen|diese|dieses|(?:seine[nr]?|ihre[nr]?|den|die|das)\s+(?:(?:in\s+Österreich|im\s+Bundesgebiet)\s+)?(?:[\w.]+\s+){0,2}?(?:minderjährige\w*|mj\.?|mündige\w*|unmündige\w*|nachgeborene\w*|geborene\w*|Sohn|Tochter|Kind\w*|(?:Zweit|Dritt|Viert|Fünft|Sechst|Siebt|Acht|Neunt)\w*|BF\s?\d|bP\s?\d))\b|als\s+gesetzliche\w*\s+Vertret|in\s+Vertretung|gesetzlich\s+vertreten'
+
+court_decisions:
+  trigger: 'Erkenntnis|Beschl[uü]ss|Urteil|UBAS|Bundesasylsenat|Verwaltungsgerichtshof|VwGH|Verfassungsgerichtshof|VfGH'
+  rules:
+    - id: court_decision_vom
+      reason: '"(Mit) Erkenntnis / Beschluss (des BVwG) vom <date>": an earlier decision of a court in the case'
+      pattern: '\b(?:Erkenntnis|Erkenntnisse|Erkenntnissen|Erkenntnisses|Erk\.|Beschluss|Beschlusses|Beschlüsse|Beschlüssen)(?:\b|(?<=\.)){GC}\bvom\s+(?:jeweils\s+)?(?P<date>{DATES})'
+    - id: court_verb_am
+      reason: '"Der Verwaltungsgerichtshof hob das angefochtene Erkenntnis am 06.06.2024, Ra 2024/01/0075, … auf": a court named as the subject, its decision verb and "am <date>". Not a date after "vom" (the decision is dated there: "wies mit Erkenntnis vom 12.11.2013, zugestellt am 15.11.2013"), after "gegen", a hearing, a delivery, an arrival or legal force ("nach Durchführung einer mündlichen Verhandlung am 05.06.2018 mit Erkenntnis vom 04.10.2018", "hg. eingelangt am", "r.k. am"), not a pronouncement ("hob das am 02.10.2023 mündlich verkündete Erkenntnis" is the quashed decision), an appeal ("die am XXXX erhobene Beschwerde") or a law in force ("gab es hier weitere Änderungen, die am 1.6.2014 in Kraft traten")'
+      pattern: '\b(?:Verwaltungsgerichtshof|VwGH|Verfassungsgerichtshof|VfGH|Bundesverwaltungsgericht|BVwG|Asylgerichtshof|AsylGH)\b[^;]{0,40}?\b(?:hob|behob|wies|lehnte|gab)\b(?!\s+es\b)(?:(?!Verhandlung|zugestellt|eingelangt|r\.\s?k\.|rechtskräftig|\bvom\b|\bgegen\b)[^;]){0,80}?\bam\s+(?P<date>{DAY})(?!\s*,?\s*(?:mündlich|schriftlich|in\s+Kraft|erhoben|eingebracht|eingelangt|zugestellt))'
+    - id: court_verb_mit_am
+      reason: '"Das Bundesverwaltungsgericht wies … mit dem am 11.09.2017 mündlich verkündeten Erkenntnis … ab": the court named as the subject decided with its own decision pronounced orally on that date'
+      pattern: '\b(?:Verwaltungsgerichtshof|VwGH|Verfassungsgerichtshof|VfGH|Bundesverwaltungsgericht|BVwG|Asylgerichtshof|AsylGH)\b[^;]{0,40}?\b(?:hob|behob|wies|lehnte|gab)\b(?:(?!\bvom\b|\bgegen\b)[^;]){0,80}?\bmit\s+(?:dem\s+|der\s+)?am\s+(?P<date>{DAY})\s+(?:[^;]{0,60}?\s)?mündlich\s+verkündete[mnr]?\b(?![^;]{0,40}?\bBescheid)'
+    - id: ubas_bescheid_vom
+      reason: 'the UBAS (the appeal body before 2008) decided by "Bescheid": "Mit Bescheid des UBAS vom 06.06.2008 … wurde die Berufung … abgewiesen" is an earlier decision of the appeal body, not of the asylum authority'
+      pattern: '\bBescheid(?:e|es|s|en)?\s+(?:des\s+)?(?:UBAS|Unabhängigen\s+Bundesasylsenat(?:e?s)?)\b{GC}\bvom\s+(?:jeweils\s+)?(?P<date>{DATES})'
+  courts:
+    BVwG: 'Bundesverwaltungsgericht\w*|\bBVwG\b|erkennende[nm]?\s+Gericht\w*|\bGericht\w*\s+erster\s+Instanz|\bh\.?g\.|\bho\.|\bh\.o\.|hiergerichtlich\w*|hierortig\w*'
+    AsylGH: 'Asylgerichtshof\w*|\bAsylGH\b|\bAGH\b'
+    UBAS: 'Unabhängige[nr]?\s+Bundesasylsenat\w*|\bUBAS\b'
+    VwGH: 'Verwaltungsgerichtshof\w*|\bVwGH\b'
+    VfGH: 'Verfassungsgerichtshof\w*|\bVfGH\b'
+  # the case number printed right after the date names the court ("Über die gegen das Erkenntnis vom 13.02.2020, GZ:
+  # G305 2192717-1/12E, erhobenen Beschwerden sprach der Verfassungsgerichtshof …" is the BVwG's); a BVwG decision of
+  # this decision's date with another proceeding number of the same person is another decision ("W286 2164690-3/7E"
+  # beside this decision's 2164690-2)
+  court_numbers:
+    BVwG: '[WGLI]\s?\d{3}\s+\d{7}-\d+'
+    AsylGH: '[A-E]\d{1,2}\s+\d{3}\.?\d{3}-\d+/\d{4}'
+    VwGH: '(?:Ra|Ro|Fr|Fe)\s?\d{4}/\d{2}/\d{4}|(?:19|20)\d{2}/\d{2}/\d{4}'
+    VfGH: '[EUGB]\s?\d{1,4}/\d{2,4}(?!/)'
+  court_number_at: '\s*,?\s*(?:(?:zu\s+)?(?:GZ|Zl|Zahl|AZ|Gz)(?:en|n)?\.?\s*:?\s*)?'
+  # courts outside the asylum case (criminal and civil courts, European courts): skipped
+  # other bodies named in the decision's own noun phrase ("Beschluss des BG Linz vom"; not "gemäß § 17 BFA-VG" later)
+  other: '\bBG\b|\bLG\b|\bOLG\b|\bLGSt\b|belangte[nr]?\s+Behörde|Bundesamt\w*|\bBFA\b(?!-VG)|Staatsrat\w*|Bezirksgericht\w*|Landesgericht\w*|Oberlandesgericht\w*|\bOGH\b|Obersten\s+Gerichtshof\w*|\bEGMR\b|Europäische[nr]?\s+Gerichtshof\w*|\bEuGH\b|Landesverwaltungsgericht\w*|\bLVwG\b|Strafgericht\w*|Jugendgericht\w*|Familiengericht\w*|Pflegschaftsgericht\w*'
+  # criminal proceedings around the decision
+  criminal: 'Nichtigkeitsbeschwerde|Strafsache|strafrechtlich\w*|Urteil\w*|Strafverfahren\w*|Hauptverhandlung'
+  # an unnamed court counts only in a sentence about the appellant or the appeal
+  case: '\b(?:BF\d*|bP\d*|Beschwerdeführ\w*|beschwerdeführende\w*|Beschwerde\w*|Revision\w*|Antr[aä]g\w*|hg\.|ho\.|h\.g\.)'
+  # the court acted on the appellant's case (a decision verb, also "gewährt": "Mit Beschlüssen des BVwG vom 30.11.2016
+  # wurde den Beschwerden die aufschiebende Wirkung gewährt") and the sentence does not cite case law
+  decided: '\b(?:aufgehoben|aufhob|hob|behob|behoben|zurückgewiesen|zurückverwiesen|wies|abgewiesen|stattgegeben|gab|abgelehnt|lehnte|eingestellt|zuerkannt|erkannte|aberkannt|abgeändert|behoben|bestätigt|rechtskräftig|entschieden|gewährt)\b'
+  # a court not named in the sentence ("Mit Erkenntnis vom 11.2.2015 wurden die Beschwerden abgewiesen") is the appeal
+  # court of its date: the UBAS until 30 June 2008, the AsylGH until 31 Dec 2013, the BVwG since; recorded with
+  # court_inferred
+  appeal_court_by_date: [['2008-07-01', UBAS], ['2014-01-01', AsylGH], ['9999-12-31', BVwG]]
+  # in an entry procedure (the challenged decision is an embassy's) a decision granting a status is the sponsor's: the
+  # appellant abroad has none
+  sponsor_status: '\bStatus\w*\s+(?:des|der|eines|einer)\s+(?:Asylberechtigten|subsidiär\s+Schutzberechtigten)\b|\bAsyl\s+(?:gewährt|zuerkannt)|Flüchtlingsstatus|Flüchtlingseigenschaft'
+  # whole words: "zurückverwiesen" (remitted) is a decision, not a reference to case law
+  citation: '\bvgl\.|\bsiehe\b|\bJudikatur|\bRechtsprechung|\bausgesprochen\b|\bfestgehalten\b|\bjudiziert|\b(?:verwies|verweist|verwiesen|verweisen)\b|\bzitiert|\b[Hh]inweis\b|\bunter\s+Hinweis|\bwonach\b|\bEGMR\b|\bEuGH\b|\bständige[nr]?\b|\bLeitentscheidung|\bgrundlegend'
+
+# The date of the oral pronouncement, read from the head and the start of the reasoning where stage 03 gives none (stage
+# 03 reads the head before its introductory sentence only): "GEKÜRZTE AUSFERTIGUNG DES AM ... MÜNDLICH VERKÜNDETEN
+# ERKENNTNISSES", "Ausfertigung des am 24. Oktober 2019 verkündeten Erkenntnisses", also the misprint "mündlichen
+# verkündeten". A date before the head's (latest) challenged decision belongs to an earlier decision ("des am 08.11.2017
+# mündlich verkündeten Erkenntnisses … zur Zl I411 …-1"). A head that says the decision was pronounced orally without a
+# date ("mündlich verkündeteten Erkenntnisses") has the date of the hearing the head names, where it names one: the
+# pronouncement closes the hearing (§ 29 Abs. 2 VwGVG).
+pronouncement: '(?i)\bam\s+(?P<date>{DAY})\s+(?:mündlich\w*\s+)?verkündet\w*|\bmündlich\w*\s+verkündet\w*\s+(?:am|vom)\s+(?P<date2>{DAY})'
+pronounced_without_date: '(?i)\bmündlich\w*\s+verkündet\w*'
+pronouncement_reasoning_chars: 1200
+
+# The law of the proceeding (label new_law). The EU asylum and migration pact applies to proceedings begun on or after
+# 12 June 2026; a decision of the court on or after that day may still end a proceeding begun before it under the old
+# law. By the start of the proceeding, in this order:
+#   no       decided before that day; or a challenged decision dated before it (an application precedes its decision)
+#   yes      the latest application for international protection the text dates is dated on or after that day
+#            (an application dated after the challenged decision began another proceeding and is left out)
+#   no       the applications the text dates are all dated before it
+#   unknown  otherwise (no challenged decision dated, no application dated)
+# A date counts only where it is certainly before or after the day ("2026-06" is neither). The applications are read
+# only for the decisions decided on or after that day without a challenged decision dated before it.
+new_law:
+  from: '2026-06-12'
+
+# The applications for international protection, read for new_law only (only the latest date matters): in the head
+# and the procedural history; not an application in another state, not a relative's.
+applications:
+  trigger: 'Antr[aä]g|Asylantr|Folgeantr|Schutz\s+an\b|Asyl\s+an\b|internationale[nm]\s+Schutz'
+  # an application in another state (Dublin: "in Italien", a EURODAC hit) is not one in Austria
+  foreign: '\bin\s+(?:der\s+(?:Bundes)?[Rr]epublik\s+)?(?:{FOREIGN}|einem\s+anderen\s+(?:Mitglied|EU-?|Dublin-?)\w*staat\w*|einem\s+Mitgliedstaat|einem\s+Drittstaat|der\s+(?:EU|Europäischen\s+Union))\b|\b(?:nach|über)\s+(?:Italien|Ungarn|Griechenland|Bulgarien|Kroatien|Slowenien|Deutschland|Rumänien|Polen|Frankreich|Spanien|Schweden|der\s+Schweiz)\s+(?:\w+\s+){0,3}?(?:ein|eingereist)\b(?:[^;]){0,20}?\bdort\b|\bstellte(?:n)?\s+(?:er|sie)?\s*dort\b|\bdort\b|EURODAC|Eurodac|erkennungsdienstlich|Treffermeldung'
+  # the whole sentence is about an application elsewhere (a EURODAC hit)
+  foreign_sentence: 'EURODAC|Eurodac|erkennungsdienstlich\w*\s+behandelt|Treffermeldung|Kategorie\s+1'
+  # "..., wo er am <date> einen Antrag stellte": the place the relative clause refers to, the last before "wo"
+  place_austria: '{AT}|\bins\s+Inland\b|\bnach\s+Wien\b|\bhier\b'
+  place_other: '\b(?:nach|in|über)\s+(?:der\s+|die\s+|den\s+|das\s+)?(?:(?:Bundes)?[Rr]epublik\s+)?(?:XXXX\s?/\s?)?{FOREIGN}\b|\bHoheitsgebiet\s+der\s+Mitgliedstaaten\b|\b(?:einem|einen)\s+anderen\s+Mitgliedstaat\w*'
+  relative_clause: '\b(?:wo|wobei|woraufhin|worauf)\b'
+  here_after: '\s*,?\s*(?:in\s+Österreich|im\s+(?:österreichischen\s+)?Bundesgebiet)\b'
+  rules:
+    - id: stellte_date_app
+      reason: '"stellte am <date> ... einen Antrag auf internationalen Schutz"; "brachte am <date> ... einen Antrag ... ein" (not "brachte ... vor")'
+      pattern: '\b(?:stellte|stellten|stellt|beantragte|beantragten|einbrachte|einbrachten)\b{GA}\b(?:am|vom)\s+(?:jeweils\s+)?(?P<date>{DATES}){GA}{APP}|\b(?:brachte|brachten)\b{GA}\b(?:am|vom)\s+(?:jeweils\s+)?(?P<date2>{DATES}){GA}{APP}(?:\s+[\w\-.]+){0,8}?\s+ein\b'
+    - id: date_stellte_app
+      reason: '"Am <date> stellte der BF ... einen (Folge)Antrag"'
+      pattern: '\b(?:Am|am|Mit|mit)\s+(?P<date>{DATES}),?\s+(?:stellte|stellten|beantragte|beantragten)\b{GA}{APP}|\b(?:Am|am)\s+(?P<date2>{DATES}),?\s+(?:brachte|brachten)\b{GA}{APP}(?:\s+[\w\-.]+){0,8}?\s+ein\b'
+    - id: date_app_stellte
+      reason: 'verb-final clause: "..., wo er am <date> den gegenständlichen Antrag auf internationalen Schutz stellte"'
+      pattern: '\b(?:am|Am)\s+(?P<date>{DATES}){GV}{APP}{GV}\b(?:stellte|stellten|einbrachte|einbrachten|beantragte|beantragten)\b'
+    - id: beantragte_schutz
+      reason: '"beantragte am <date> (die Gewährung) internationalen Schutz(es)"; "Am <date> beantragte ... internationalen Schutz"'
+      pattern: '\bbeantragte(?:n)?\b{GA}\b(?:am|vom|mit)\s+(?P<date>{DATES}){GA}\b(?:die\s+)?(?:Gewährung\s+(?:von\s+)?)?internationale[nm]\s+Schutz|\b(?:Am|am|Mit|mit)\s+(?P<date2>{DATES}),?\s+beantragte(?:n)?\b{GA}\b(?:die\s+)?(?:Gewährung\s+(?:von\s+)?)?internationale[nm]\s+Schutz'
+    - id: app_date
+      reason: '"den Antrag auf internationalen Schutz vom / am <date>" (in any verb frame), also "den Folgeantrag des Beschwerdeführers vom <date>"'
+      pattern: '{APP}\s+(?:\(\w+\)\s+)?(?:(?:des|der)\s+(?:BF\d*|bP\d*|Beschwerdeführ\w*|beschwerdeführende\w*(?:\s+Partei)?)\s+)?(?:vom|am)\s+(?:jeweils\s+)?(?P<date>{DATES})'
+    - id: date_app_gestellt
+      reason: '"am <date> ... ein Antrag ... gestellt / eingebracht" (passive) and "Antrag ... am <date> gestellt", also with a citation of the law between ("einen Antrag auf internationalen Schutz gemäß § 2 Abs. 1 Z 13 des Asylgesetzes 2005 (AsylG 2005), BGBl. I Nr. 100/2005 idgF, gestellt")'
+      pattern: '\b(?:Am|am)\s+(?P<date>{DATES}){GV}{APP}(?:\s+gemäß\s+§[^;]{0,140}?)?{GV}\b(?:gestellt|eingebracht|eingereicht)\b|{APP}{GV}\bam\s+(?P<date2>{DATES}){GV}\b(?:gestellt|eingebracht|eingereicht)\b'
+    - id: antragstellung_date
+      reason: '"(seit seiner) Antragstellung am <date>": in the procedural history of an asylum decision the application for protection'
+      pattern: '\b(?:Asyl)?[Aa]ntragstellung\s+(?:\w+\s+){0,2}?(?:am|vom)\s+(?P<date>{DATES})'
+    - id: same_day
+      reason: '"... am <date> ein und stellte am selben Tag einen Antrag": the text binds the application to the last date before it in the sentence (day dates only); up to six words between "stellte" and "am selben Tag" ("stellte für sich und ihre Kinder am selben Tag Anträge")'
+      same_day: true
+      pattern: '\bam\s+(?:selben|gleichen|demselben|nämlichen)\s+Tag\b{GV}{APP}{GV}\b(?:gestellt|eingebracht|stellte|stellten|einbrachte|einbrachten)\b|\bam\s+(?:selben|gleichen|demselben|nämlichen)\s+Tag,?\s+(?:stellte|stellten)\b{GA}{APP}|\b(?:stellte|stellten)\s+(?:\w+\s+){0,6}?am\s+(?:selben|gleichen|demselben|nämlichen)\s+Tag\b{GA}{APP}'
+    - id: suchte_date_an
+      reason: '"suchte am <date> um internationalen Schutz / Asyl an"'
+      pattern: '\bsuchte(?:n)?\b{GA}\bam\s+(?P<date>{DATES}){GA}\bum\s+(?:internationalen\s+Schutz|Asyl)\b'
+
+# The court's hearing in this proceeding: held where the head names it, the decision was pronounced orally, or a hearing
+# is dated on or after the challenged decision (any dated hearing where no challenged decision is dated); held also
+# where nothing else decides and a sentence names the court-hearing step of the interviews below ("In der mündlichen
+# Verhandlung gab der BF an ..."), dated or not, even a hearing of an earlier round. Not held where the court says it
+# decided without one. Where the court says so, dated hearings that all precede an earlier court decision in the case
+# belong to that earlier round, not to this one ("Entfall einer mündlichen Verhandlung" after the hearings of 19.02. and
+# 06.03.2020 and the decision of 14.05.2020 to be reopened).
+hearings:
+  trigger: 'Verhandlung'
+  # the head: "... nach Durchführung einer (öffentlichen) mündlichen Verhandlung (am <date>) zu Recht erkannt"
+  head: 'nach\s+Durchführung\s+(?:(?:einer|der|von|zweier|mehrerer)\s+)?(?:öffentliche[nr]?\s+)?(?:mündliche[nr]?\s+)?(?:Beschwerde)?[Vv]erhandlung(?:en)?(?:\s+(?:am|vom)\s+(?P<date>{DATES}))?'
+  # a hearing that was only requested, summoned, set or called off is no hearing held
+  skip_sentence: 'abberaumt|abgesagt|abgeberaumt|\bverlegt|geladen|Ladung|anberaumt|(?:Durchführung|Anberaumung)\s+einer\s+(?:\w+\s+){0,2}?Verhandlung\s+(?:\w+\s+){0,2}?beantragt|beantragte\w*\s+(?:\w+\s+){0,3}?(?:die\s+)?(?:Durchführung|Anberaumung)|Antrag\s+auf\s+(?:Durchführung|Anberaumung)|(?:[Vv]erzicht\w*)\s+(?:\w+\s+){0,6}?(?:auf\s+)?(?:die\s+)?(?:Durchführung\s+)?(?:einer\s+|der\s+)?(?:mündlichen\s+)?Verhandlung|Verhandlung\s+(?:\w+\s+){0,4}?verzichtet'
+  rules:
+    - id: fuehrte_date_verhandlung
+      reason: '"(Das BVwG) führte / hielt am <date> ... eine mündliche Verhandlung durch / ab"'
+      pattern: '\b(?:führte|führten|hielt|hielten)\b{GH}\b(?:am|vom)\s+(?P<date>{DATES}){GH}\b(?:mündliche|öffentliche)\w*\s+(?:mündliche\s+)?(?:Beschwerde)?[Vv]erhandlung'
+    - id: date_fand_verhandlung
+      reason: '"Am <date> fand (vor dem BVwG) eine mündliche Verhandlung statt" / "wurde ... durchgeführt"'
+      pattern: '\b(?:Am|am)\s+(?P<date>{DATES}),?\s+(?:fand|fanden|wurde|wurden|führte|führten|hielt|hielten)\b{GH}\b(?:mündliche|öffentliche)\w*\s+(?:mündliche\s+)?(?:Beschwerde)?[Vv]erhandlung'
+    - id: gericht_verhandlung
+      reason: '"Das BVwG führte am <date> ... eine Verhandlung durch" (without "mündliche")'
+      pattern: '\b(?:führte|hielt)\b[^;]{0,40}?\b(?:Bundesverwaltungsgericht\w*|BVwG|erkennende\w*\s+Gericht\w*)\b{GH}\b(?:am|vom)\s+(?P<date>{DATES}){GH}\bVerhandlung\b|\b(?:Am|am)\s+(?P<date2>{DATES}),?\s+(?:führte|hielt)\s+(?:das\s+)?(?:Bundesverwaltungsgericht\w*|BVwG|erkennende\w*\s+Gericht\w*)\b{GH}\bVerhandlung\b'
+    - id: verhandlung_am
+      reason: '"in der / einer mündlichen Verhandlung (vor dem BVwG) am <date>", "die am <date> durchgeführte Verhandlung"'
+      pattern: '\b(?:mündliche|öffentliche)\w*\s+(?:mündliche\w*\s+)?(?:Beschwerde)?[Vv]erhandlung\w*\s+(?:vor\s+dem\s+\w+\s+)?(?:\w+\s+)?(?:am|vom)\s+(?P<date>{DATES})|\b(?:am|vom)\s+(?P<date2>{DATES})\s+(?:durchgeführte\w*|abgehaltene\w*|stattgefundene\w*)\s+(?:öffentliche\w*\s+)?(?:mündliche\w*\s+)?(?:Beschwerde)?[Vv]erhandlung'
+  courts:
+    BVwG: 'Bundesverwaltungsgericht\w*|\bBVwG\b|erkennende[nm]?\s+Gericht\w*|\berkennende[nr]?\s+Richter\w*'
+    AsylGH: 'Asylgerichtshof\w*|\bAsylGH\b|\bAGH\b'
+    UBAS: 'Unabhängige[nr]?\s+Bundesasylsenat\w*|\bUBAS\b'
+  # the court says it decided without a hearing (a concrete past form; the law's "kann ... unterbleiben" and "nicht
+  # unterbleiben" or a higher court's criticism do not count): also "kann daher / im gegenständlichen Fall
+  # unterbleiben", the heading "Unterbleiben der mündlichen Verhandlung", "hat nicht dargelegt, welche Ausführungen er
+  # in einer mündlichen Verhandlung hätte treffen wollen" (said of a hearing not held), "war dieses Erkenntnis ohne
+  # Durchführung einer mündlichen Verhandlung zu erlassen / zu treffen" (§ 11a FPG; the law's "sind … durchzuführen"
+  # does not count), "hat sich … als nicht erforderlich erwiesen", "Eine Beschwerdeverhandlung konnte … unterbleiben",
+  # "dem Antrag auf Durchführung einer mündlichen Beschwerdeverhandlung nicht zu folgen"
+  not_held: '(?:mündliche\w*\s+(?:Beschwerde)?[Vv]erhandlung|Verhandlung)\b(?:(?!nicht|kann|könne|zu\s+Unrecht|hätte)[^;]){0,120}?\b(?:konnte|durfte|wurde|war|ist)\b(?:(?!nicht|zu\s+Unrecht)[^;]){0,80}?\b(?:unterbleiben|entfallen|abgesehen|Abstand\s+genommen|abzusehen|unterlassen)|\b(?:konnte|durfte|wurde|war)\b(?:(?!nicht|zu\s+Unrecht)[^;]){0,60}?\b(?:von\s+der\s+Durchführung\s+einer|auf\s+die\s+Durchführung\s+einer|von\s+einer)\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?(?:Beschwerde)?[Vv]erhandlung\b(?:(?!nicht)[^;]){0,60}?\b(?:abgesehen|Abstand\s+genommen|verzichtet)|\b(?:konnte|durfte)\b(?:(?!nicht)[^;]){0,40}?\b(?:die\s+Durchführung\s+einer\s+|eine\s+)?(?:öffentliche[n]?\s+)?(?:mündliche[n]?\s+)?(?:Beschwerde)?[Vv]erhandlung\b(?:(?!nicht)[^;]){0,60}?\b(?:unterbleiben|entfallen|abgesehen\s+werden|unterlassen\s+werden)|[Vv]erhandlung\b(?:(?!nicht|kann|könne)[^;]){0,60}?\b(?:unterbleiben|entfallen|abgesehen\s+werden)\s+(?:konnte|durfte)\b|^\s*(?:[\dIVX][\d.IVX]*\s*)?(?:Zum|Zur|Zu)\s+(?:Unterbleiben|Entfall|Absehen\s+von)\s+(?:einer|der)\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?(?:Beschwerde)?[Vv]erhandlung|\bunterlassene[n]?\s+(?:öffentliche[n]?\s+)?(?:mündliche[n]?\s+)?Verhandlung|\b(?:konnte|durfte|wurde|war)\b(?:(?!nicht)[^;]){0,60}?\bohne\s+(?:Abhaltung|Durchführung)\s+einer\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?Verhandlung\s+(?:\w+\s+){0,3}?(?:entschieden|zu\s+entscheiden)|\bohne\s+(?:Abhaltung|Durchführung)\s+einer\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?Verhandlung\b(?:(?!nicht)[^;]){0,40}?\b(?:entschieden\s+werden\s+(?:konnte|durfte)|zu\s+entscheiden\s+war)|[Vv]erhandlung\b(?:(?!nicht)[^;]){0,60}?\bkann\s+(?:daher|somit|deshalb|demnach|folglich|sohin|hier|im\s+(?:gegenständlichen|vorliegenden)\s+(?:Fall|Verfahren))\b(?:(?!nicht)[^;]){0,60}?\b(?:unterbleiben|entfallen)|^\s*(?:[\dIVX][\d.IVX]*\s*)?(?:Unterbleiben|Entfall|Absehen\s+von)\s+(?:einer|der)\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?(?:Beschwerde)?[Vv]erhandlung\s*:?\s*$|\bwelche\s+(?:\w+\s+){0,3}?(?:Ausführungen|Angaben|Vorbringen|Argumente)\s+(?:\w+\s+){0,4}?in\s+einer\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?(?:Beschwerde)?[Vv]erhandlung(?:en)?\s+(?:\w+\s+){0,3}?(?:hätte|hätten)\b|\b(?:war|wurde)\b(?:(?!nicht)[^;]){0,80}?\bohne\s+(?:Durchführung\s+einer\s+)?(?:öffentlichen\s+)?mündliche[n]?\s+(?:Beschwerde)?[Vv]erhandlung\s+(?:zu\s+erlassen|durchzuführen|zu\s+entscheiden|erlassen|entschieden|zu\s+treffen|getroffen)|[Vv]erhandlung\b[^;]{0,140}?\bals\s+nicht\s+(?:erforderlich|notwendig|geboten)\s+erwiesen|\b(?:Beschwerde)?[Vv]erhandlung\b(?:(?!nicht|kann|könne|zu\s+Unrecht|hätte)[^;]){0,60}?\b(?:konnte|durfte)\b(?:(?!nicht)[^;]){0,60}?\b(?:unterbleiben|entfallen)\b|\bAntr\w*\s+auf\s+(?:Durchführung|Anberaumung|Abhaltung)\s+einer\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?(?:Beschwerde)?[Vv]erhandlung\s+(?:\w+\s+){0,3}?nicht\s+(?:zu\s+)?(?:folgen|stattzugeben|entsprechen|nachzukommen)'
+
+# The interpreter per step: yes where a step's sentence names an interpreter (or, where it names none, the next
+# sentence of the same paragraph that names no other step does: "Am ... fand die Einvernahme vor dem BFA statt. Dabei
+# gab der BF an, den anwesenden Dolmetscher einwandfrei zu verstehen."), no where it says there was none,
+# not_mentioned where the step is mentioned without an interpreter; in a sentence naming several steps the interpreter
+# belongs to the step named nearest to it. Outside the procedural history a sentence counts only when it is about the
+# appellant. A Bundesasylamt interview is the BFA interview.
+interviews:
+  trigger: 'Erstbefragung|erstbefragt|Sicherheitsdienst|Polizei|Einvernahme|einvernommen|befragt|Verhandlung'
+  steps:
+    first_questioning: 'Erstbefragung|erstbefragt|Organ\w*\s+des\s+öffentlichen\s+Sicherheitsdienst\w*|Polizeiinspektion|Polizeibeamt\w*|polizeilich\w*\s+(?:Erst)?[Bb]efragung'
+    # the interview "vor dem BFA" (either order), or the authority as subject ("Das Bundesamt zog der Einvernahme ... bei")
+    bfa_interview: '(?:Einvernahme|einvernommen|befragt|Befragung)\w*\s+(?:[\w.,()\-]+\s+){0,12}?(?:(?:vor|von|durch|bei|seitens)\s+(?:dem|der|einem|einer|das|die|des|eines)|vom|beim|seitens)\s+(?:[\w.,\-]+\s+){0,4}?(?:BFA|Bundesamt\w*|Bundesasylamt\w*|BAA|belangte[nr]?\s+Behörde|Organwalter\w*|Erstaufnahmestelle|EAST)\b|\b(?:(?:vor|von|durch|bei|seitens)\s+(?:dem|der|einem|einer|das|die|des|eines)|vom|beim|seitens)\s+(?:[\w.,\-]+\s+){0,4}?(?:BFA|Bundesamt\w*|Bundesasylamt\w*|BAA|bB|belangte[nr]?\s+Behörde|Organwalter\w*)\b(?:[\s,]+[\w.,()\-]+){0,16}?\s+(?:niederschriftlich\s+)?(?:Einvernahme|einvernommen|befragt|vernommen)\b|\b(?:BFA|Bundesamt\w*|Bundesasylamt\w*|belangte[nr]?\s+Behörde)\b(?:\s+[\w.,\-]+){0,8}?\s+(?:der\s+)?(?:Einvernahme|einvernahm|vernahm|befragte)\w*|\b(?:Einvernahmeprotokoll\w*|Einvernahmeniederschrift\w*|Niederschrift\w*\s+(?:der\s+)?(?:Einvernahme\s+)?(?:vor\s+dem|des)\s+(?:BFA|Bundesamt\w*|Bundesasylamt\w*))'
+    # a hearing that took place: "in der (mündlichen) Verhandlung", "... Verhandlung durchgeführt / statt", "führte ... Verhandlung"
+    court_hearing: '\b(?:[Ii]n|[Bb]ei|[Ii]m\s+Rahmen|[Aa]nlässlich|[Ww]ährend)\s+(?:der|einer)\s+(?:öffentlichen\s+)?(?:mündlichen\s+)?(?:Beschwerde)?[Vv]erhandlung|(?:mündliche|öffentliche)\w*\s+(?:mündliche\w*\s+)?(?:Beschwerde)?[Vv]erhandlung\w*\b[^;]{0,140}?\b(?:durch|statt|abgehalten|durchgeführt)\b|\b(?:führte|fand|hielt|führten|fanden)\b[^;]{0,140}?(?:Beschwerde)?[Vv]erhandlung'
+  # a sentence about the court's hearing is not one about the BFA interview
+  not_bfa: 'Verhandlung'
+  # a hearing mentioned only as requested, summoned or waived is no step held
+  not_hearing: 'beantragt|Antrag\s+auf\s+(?:Durchführung|Anberaumung)|geladen|Ladung|abberaumt|verzicht\w*|Verzicht\w*|unterbleiben|entfallen|abgesehen|Abstand'
+  # a step sentence with the interpreter in it; "ohne Dolmetsch", "auf Deutsch" say there was none
+  interpreter: '(?<!ohne\s)(?<!ohne\sBeiziehung\seines\s)(?<!ohne\sBeiziehung\seiner\s)\bDolmetsch\w*|\b[ÜüU]bersetzer\w*'
+  no_interpreter: '\bohne\s+(?:Beiziehung\s+(?:eines|einer)\s+)?Dolmetsch\w*|\bin\s+deutscher\s+Sprache\s+(?:einvernommen|befragt|durchgeführt)|\bauf\s+Deutsch\s+(?:einvernommen|befragt|durchgeführt)'
+  # a statement about the interpreter in another sense (the appellant worked as one); "understood the interpreter" is
+  # evidence that one was present
+  skip: 'Dolmetscherleistung|als\s+Dolmetscher\w*\s+(?:tätig|gearbeitet|beschäftigt)|Dolmetschertätigkeit|Dolmetscherkurs|Dolmetscherin\s+zur\s+Hand'
+  language: '(?:Dolmetsch\w*|[ÜüU]bersetzer\w*)\s+(?:\w+\s+){0,2}?(?:für\s+(?:die\s+)?(?:Sprache[n]?\s+)?(?P<name>[A-ZÄÖÜ][a-zäöüA-ZÄÖÜ\-]+(?:\s*(?:,|und|bzw\.?|sowie|oder|/)\s*[A-ZÄÖÜ][a-zäöüA-ZÄÖÜ\-]+){0,3})|für\s+die\s+(?P<adjective>[a-zäöü]+ische|[a-zäöü]+e)\s+(?:und\s+(?P<adjective2>[a-zäöü]+ische)\s+)?Sprache|(?:der|in\s+der)\s+Sprache\s+(?P<name2>[A-ZÄÖÜ][a-zäöüA-ZÄÖÜ\-]+))'
+  # language names: printed form (lower case, or the adjective stem) -> name
+  languages:
+    dari: Dari
+    farsi: Farsi
+    persisch: Farsi
+    paschtu: Paschtu
+    paschto: Paschtu
+    pashto: Paschtu
+    pashtu: Paschtu
+    paschtunisch: Paschtu
+    arabisch: Arabisch
+    russisch: Russisch
+    tschetschenisch: Tschetschenisch
+    somalisch: Somali
+    somali: Somali
+    kurdisch: Kurdisch
+    kurmanci: Kurdisch (Kurmanci)
+    kurmandschi: Kurdisch (Kurmanci)
+    sorani: Kurdisch (Sorani)
+    türkisch: Türkisch
+    englisch: Englisch
+    französisch: Französisch
+    georgisch: Georgisch
+    armenisch: Armenisch
+    urdu: Urdu
+    punjabi: Punjabi
+    pandschabi: Punjabi
+    bengali: Bengali
+    bengalisch: Bengali
+    tigrinya: Tigrinya
+    tigrinisch: Tigrinya
+    amharisch: Amharisch
+    mongolisch: Mongolisch
+    ukrainisch: Ukrainisch
+    serbisch: Serbisch
+    albanisch: Albanisch
+    chinesisch: Chinesisch
+    mandarin: Chinesisch
+    hindi: Hindi
+    spanisch: Spanisch
+    portugiesisch: Portugiesisch
+    edo: Edo
+    igbo: Igbo
+    yoruba: Yoruba
+    usbekisch: Usbekisch
+    tadschikisch: Tadschikisch
+    aserbaidschanisch: Aserbaidschanisch
+    azeri: Aserbaidschanisch
+    romanes: Romanes
+    rumänisch: Rumänisch
+    bosnisch: Bosnisch
+    kroatisch: Kroatisch
+    mazedonisch: Mazedonisch
+    tamil: Tamil
+    singhalesisch: Singhalesisch
+    nepali: Nepali
+    belutschi: Belutschi
+    hazaragi: Hazaragi
+    uigurisch: Uigurisch
+    lingala: Lingala
+    wolof: Wolof
+    mandinka: Mandinka
+    fula: Fula
+    swahili: Swahili
+    kisuaheli: Swahili
+    oromo: Oromo
+    tschechisch: Tschechisch
+    polnisch: Polnisch
+    ungarisch: Ungarisch
+    kirgisisch: Kirgisisch
+    kasachisch: Kasachisch
+    turkmenisch: Turkmenisch
+    vietnamesisch: Vietnamesisch
+    bulgarisch: Bulgarisch
+    griechisch: Griechisch
+    italienisch: Italienisch
+    deutsch: Deutsch
+
+# The appellant's gender, from the court's gendered wording. One appellant: the weighted cues of the head and the case
+# history (articles, nouns and pronouns, after Ecker, Ennser-Jedenastik and Haselmayer 2020, Sex Roles 82:117-126); a
+# gender needs a total weight of min_score and a share of min_share. Several appellants: each numbered person by the
+# head's numbered list with its article ("1. der XXXX", weight min_score), the ordinal nouns ("Zweitbeschwerdeführerin")
+# and the numbered abbreviations ("die BF2"), with the same thresholds per person; the decision is female / male when
+# every appellant has that gender, mixed when both occur, else unknown.
+appellant_gender:
+  sections: [subject, operative_part, procedural_history, procedural_history_and_findings, findings, evidence_assessment]
+  min_score: 3
+  min_share: 0.8
+  # One appellant is decided by the cues of whole words (the nouns with an article: "der Antrag der
+  # Beschwerdeführerin", "vom Beschwerdeführer") where these decide, before the abbreviations ("des BF" is written of
+  # women too); where every cue found in the parts above points one way, one_sided_min_score is enough (not in the
+  # whole reasoning, whose legal assessment speaks of "den Beschwerdeführer" in general: "Eine Zurückziehung der
+  # Beschwerde durch den Beschwerdeführer ist in jeder Lage des Verfahrens …"). Where the parts above do not decide (too
+  # few cues: short decisions without a procedural history), the cues of the whole reasoning decide, with the same
+  # thresholds.
+  full_word_cues: [head_genitive_female, female_national, appellant_female, head_genitive_male, male_national,
+                   appellant_male, appellant_male_nominative]
+  one_sided_min_score: 1
+  cues:
+    female:
+      - id: head_genitive_female
+        weight: 3
+        reason: the head names the appellant with the feminine genitive article - the most reliable cue
+        pattern: '\b[Bb]eschwerde der (?:(?:mj\.?|minderjährigen|mündigen|unmündigen)\s+)?(?:Frau\s+)?(?:XXXX|[A-ZÄÖÜ]{2,})'
+      - id: female_national
+        weight: 3
+        reason: '"eine weibliche Staatsangehörige"; the apposition or predicate "die Beschwerdeführerin, eine afghanische Staatsangehörige" / "die BF ist eine ... Staatsangehörige" (not after "Partei", whose gender is grammatical; not an object: "heiratete eine ... Staatsangehörige")'
+        pattern: '\b(?:eine|die)\s+weibliche\s+Staatsangehörige\b|\b(?:BF|Beschwerdeführerin|Asylwerberin|Antragstellerin)\b(?:\s*\([^)]{0,60}\))?(?:\s*,\s*|\s+ist\s+)eine\s+(?:\w+\s+){0,2}?Staatsangehörige\b(?![rn])'
+      - id: appellant_female
+        weight: 1
+        reason: the feminine singular noun; the plural "Beschwerdeführerinnen" does not match
+        pattern: '\bBeschwerdeführerin\b'
+      - id: appellant_female_abbrev
+        weight: 1
+        reason: feminine abbreviation used by some departments
+        pattern: '\bBFin\b'
+      - id: applicant_female
+        weight: 1
+        reason: the feminine nouns for asylum seeker and applicant
+        pattern: '\b(?:Asylwerberin|Antragstellerin)\b'
+      - id: appellant_abbrev_female
+        weight: 1
+        reason: with one appellant "die BF" is the feminine singular (the plural reading needs several appellants)
+        pattern: '\b[Dd]ie BF\b(?!\s?\d)'
+      - id: spouse_of_female
+        weight: 0.5
+        reason: 'a feminine possessive with her husband; half weight: in a husband''s case the text quotes his wife about "ihren Mann"'
+        pattern: '\b(?:[Ii]hr(?:em|en|es)?|[Ii]hre[nmrs]?) (?:Ehemann(?:es)?|Ehegatten?|Mann(?:es)?|Gatten?)\b'
+    male:
+      - id: head_genitive_male
+        weight: 3
+        reason: the head names the appellant with the masculine genitive article
+        pattern: '\b[Bb]eschwerde des (?:(?:mj\.?|minderjährigen|mündigen|unmündigen)\s+)?(?:Herrn\s+)?(?:XXXX|[A-ZÄÖÜ]{2,})'
+      - id: male_national
+        weight: 3
+        reason: '"ein männlicher Staatsangehöriger"; the apposition or predicate "der Beschwerdeführer, ein afghanischer Staatsangehöriger" / "der BF ist ein ... Staatsangehöriger"'
+        pattern: '\b(?:ein|der)\s+männliche[rn]?\s+Staatsangehörige[rn]?\b|\b(?:BF|Beschwerdeführer|Asylwerber|Antragsteller)\b(?:\s*\([^)]{0,60}\))?(?:\s*,\s*|\s+ist\s+)ein\s+(?:\w+\s+){0,2}?Staatsangehöriger\b'
+      - id: appellant_male
+        weight: 1
+        reason: masculine singular forms with an article that is not also plural (des, dem, den without -n)
+        pattern: '\b(?:des Beschwerdeführers|dem Beschwerdeführer|den Beschwerdeführer|vom Beschwerdeführer|beim Beschwerdeführer|zum Beschwerdeführer)\b'
+      - id: appellant_male_nominative
+        weight: 1
+        reason: '"der Beschwerdeführer" is nominative singular masculine, rarely genitive plural with one appellant'
+        pattern: '\b[Dd]er Beschwerdeführer\b(?! und)'
+      - id: appellant_male_abbrev
+        weight: 1
+        reason: abbreviation with a masculine article (des / dem BF)
+        pattern: '\b(?:des|dem) BF\b(?!\s?\d)'
+      - id: appellant_abbrev_male_nominative
+        weight: 1
+        reason: '"Der BF" opening a sentence is the masculine nominative ("der BF" inside a sentence can be the feminine dative or genitive)'
+        pattern: '\bDer BF\b(?!\s?\d)'
+      - id: appellant_abbrev_male_accusative
+        weight: 1
+        reason: '"den BF" is the masculine accusative (with one appellant not the dative plural)'
+        pattern: '\bden BF\b(?!\s?\d)'
+      - id: applicant_male
+        weight: 1
+        reason: masculine forms of asylum seeker and applicant with an article; not "der Asylwerber", the genitive plural of country reports and the law ("Unterbringung der Asylwerber")
+        pattern: '\b(?:des Asylwerbers|dem Asylwerber|des Antragstellers|dem Antragsteller)\b'
+      - id: spouse_of_male
+        weight: 0.5
+        reason: a masculine possessive with his wife; half weight, as for spouse_of_female
+        pattern: '\b(?:[Ss]ein(?:e|er|em|en)?) (?:Ehefrau|Ehegattin|Frau|Gattin)\b'
+  # several appellants: the numbered persons of the head ("1.) der XXXX", "2. des mj. XXXX", "1.) Herrn XXXX , 2.) Frau
+  # XXXX")
+  head_person: '(?:^|[\s,;])\(?(?P<n3>\d{1,2})\s?\.?\s?\)\s*(?P<title3>Herrn?|Frau)\s+XXXX|(?:^|[\s,;])(?:\(?(?P<n>\d{1,2})\s?\.?\s?\))\s*(?P<article>des|der)\s+(?:(?:mj\.?|minderjährigen|mündigen|unmündigen|mdj\.?)\s+)?(?:XXXX|[A-ZÄÖÜ])|(?:^|[\s,;])(?P<n2>\d{1,2})\.\s+(?P<article2>des|der)\s+(?:(?:mj\.?|minderjährigen|mündigen|unmündigen|mdj\.?)\s+)?(?:XXXX|[A-ZÄÖÜ])'
+  # the ordinal nouns are singular and gendered, so one is decisive
+  ordinal_weight: 3
+  # the numbered abbreviations with an article are decisive too ("die BF1", "des BF2")
+  person_cue_weight: 3
+  # unnumbered persons of the head, in their order ("Beschwerden des XXXX, der XXXX und des mj. XXXX"), in every block
+  # of a head repeated per appellant
+  head_person_unnumbered: '(?:^|[\s,;(])(?P<article>des|der)\s+(?:(?:mj\.?|minderjährigen|mündigen|unmündigen|mdj\.?)\s+)?(?:Herrn\s+|Frau\s+)?XXXX'
+  # a head block (as in config/head/bvwg_head.yaml, appellants.block)
+  head_block: 'Das\s+Bundesverwaltungsgericht\s+(?:hat|erkennt|beschließt|beschliesst)\b'
+  # the ordinal noun ("Zweitbeschwerdeführerin"), also as a word ("die fünfte Beschwerdeführerin", "des zweiten
+  # Beschwerdeführers"): female with "-in", male with the genitive "-s", the compound without ending ("dem
+  # Zweitbeschwerdeführer") or the nominative "der zweite Beschwerdeführer"; not after "bis" ("Zweit- bis
+  # Fünftbeschwerdeführer" is a plural range)
+  ordinal: '(?<!bis\s)\b(?P<ord>Erst|Zweit|Dritt|Viert|Fünft|Sechst|Siebent|Siebt|Acht|Neunt|Zehnt|Elft|Zwölft)[- ]?[Bb]eschwerdeführer(?:(?P<f>in)\b|s\b|\b)|\b(?P<ord2>erste|zweite|dritte|vierte|fünfte|sechste|siebente|siebte|achte|neunte|zehnte)(?P<n2end>n|r)?\s+Beschwerdeführer(?:(?P<f2>in)\b|(?P<m2>s)\b|\b)'
+  # the numbered abbreviations with an article ("die BF2" feminine; "des / dem / den BF1" and "Der BF1" opening a
+  # sentence masculine; also with "mj." between: "den mj. BF 2"), and "Die männliche bP1 und weibliche bP2"; not in a
+  # list ("die BF1 und BF2", "die BF1 und 2"); a next item with its own article is a person of its own ("den mj. BF 2,
+  # den mj. BF 3")
+  person_cues:
+    - id: person_male_adjective
+      gender: male
+      pattern: '\bmännliche[rn]?\s+(?:bP|BF)\s?(?P<n>\d{1,2})\b'
+    - id: person_female_adjective
+      gender: female
+      pattern: '\bweibliche[rn]?\s+(?:bP|BF)\s?(?P<n>\d{1,2})\b'
+    - id: person_abbrev_female
+      gender: female
+      pattern: '\b[Dd]ie\s+(?:mj\.?\s+|minderjährige\s+)?BF\s?(?P<n>\d{1,2})\b(?!\s*(?:,|und|bis|sowie|-|/)\s*(?:(?:mj\.?\s+)?BF|\d))'
+    - id: person_abbrev_male
+      gender: male
+      pattern: '\b(?:des|dem|den|Der)\s+(?:mj\.?\s+|minderjährigen\s+)?BF\s?(?P<n>\d{1,2})\b(?!\s*(?:,|und|bis|sowie|-|/)\s*(?:(?:mj\.?\s+)?BF|\d))'
+  ordinals: {erst: 1, zweit: 2, dritt: 3, viert: 4, fünft: 5, sechst: 6, siebent: 7, siebt: 7, acht: 8, neunt: 9,
+             zehnt: 10, elft: 11, zwölft: 12}

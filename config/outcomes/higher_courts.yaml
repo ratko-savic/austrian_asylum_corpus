@@ -1,0 +1,153 @@
+# Outcomes of VwGH and VfGH decisions (stage 08 --court vwgh|vfgh; src/asylum_corpus/outcomes/higher.py). The
+# patterns are applied to a sentence of the operative part in lower case, with whitespace runs reduced to one space;
+# `revision_party` and `subject_suspensive` likewise to the subject, `costs_to_party` to the whole operative part,
+# `partial` and `grounds` to the dispositions' texts together, `sentences` to the text as printed and `registers` to
+# the RIS document number.
+#
+# Order of work: the register of the decision (its RIS document number) can fix the outcome (`registers`); the operative
+# part is always cut into sentences (`sentences`), for the dispositions; a sentence matching `ancillary` (costs, fees)
+# is skipped unless it annuls; every other sentence gets every disposition type whose pattern matches; the outcome
+# follows from the types of all sentences by `outcome_order` (first rule that applies). Deadline applications are an
+# outcome of their own (deadline_application), the VfGH G and V registers are norm_review, a CJEU reference is interim.
+
+# The register of the decision fixes its outcome, whatever its operative part decides: the VwGH files
+# deadline applications (Fristsetzungsanträge, § 38 VwGG) in the register "Fr", which RIS writes as the letter F before
+# the last two digits of the document number (JWT_2021180004_20210505F00); the VfGH files its reviews of laws and
+# regulations in the registers G and V (JFT_20160308_15G00440_00). A discontinued deadline application and a dismissed
+# or rejected norm application are still a deadline application and a norm review. The VwGH register letter of a
+# document is read with `vwgh_register`, the VfGH register with `vfgh_register` (group 1).
+registers:
+  vwgh_register: '^JWT_\d{10}_\d{8}([A-Z])\d{2}$'
+  vfgh_register: '^JFT_\d{8}_\d{2}([A-Z]+)\d'
+  VwGH: {F: deadline_application}
+  VfGH: {G: norm_review, V: norm_review}
+
+# Sentences: the operative part is cut after "." / ";" / ":" before a capital letter (or a point label "II. Der ...",
+# "2.) Der ..."), except where the period belongs to a date ("vom 28. Juli 2017"), to a point label ("Spruchpunkte A. III."), or
+# to an abbreviation ("Zl.", "Dr."): otherwise "Das Erkenntnis ... vom 28. Juli 2017 ... aufgehoben" would be cut in
+# two and the annulment never read.
+sentences:
+  date_month: '(?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\b'
+  point_label: '[IVX]+\.'
+  abbreviation: '(?:Zl|Zlen|Nr|Abs|Art|Dr|Mag|lit|Z|gem|vgl|iVm|Rz|Rs|GZ|idF|BGBl|St|ua|Pkt|Prof|Ing)\.'
+
+ancillary:
+  reason: costs and fees are ancillary orders, not the decision on the remedy
+  pattern: 'aufwendungen|aufwandersatz|kostenersatz|\bkosten\b|ist schuldig|mehrbegehren|eingabengebühr|bei sonstiger exekution'
+
+dispositions:
+  - id: annulled
+    reason: the BVwG decision is set aside ("Das angefochtene Erkenntnis wird ... aufgehoben", VfGH "Das Erkenntnis wird aufgehoben"); also a point of it ("der angefochtene Spruchpunkt A.I. ... wird ... aufgehoben") and an annulment on the grounds of § 42 Abs. 2 VwGG ("wegen Rechtswidrigkeit seines Inhaltes aufgehoben")
+    pattern: '\b(?:erkenntnis|beschluss|erkenntnisse|beschlüsse|entscheidung|bescheid|bescheide|spruchpunkte?s?)\b.{0,600}?\b(?:aufgehoben|aufzuheben)\b|\b(?:wird|werden) (?:\w+ ){0,3}aufgehoben\b|\bwegen (?:rechts?widrigkeit|verletzung von verfahrensvorschriften|unzuständigkeit)\b.{0,200}?\baufgehoben\b'
+  - id: rights_violated
+    reason: VfGH finds a violation of a constitutionally guaranteed right (or of rights by an unlawful norm)
+    pattern: 'verfassungsgesetzlich gewährleisteten recht.{0,300}verletzt|in (?:seinen|ihren) rechten verletzt|rechtswidrigen generellen norm .{0,80}verletzt'
+  - id: no_violation
+    reason: VfGH finds no violation (the complaint fails); "Der Anfechtung wird nicht stattgegeben" - an election challenge fails (W register)
+    pattern: 'nicht in (?:seinen|ihren) rechten verletzt|weder .{0,200}noch .{0,200}verletzt worden|\b(?:der|dem) anfechtung (?:wird )?nicht stattgegeben'
+  - id: rejected
+    reason: the revision or complaint is inadmissible ("zurückgewiesen")
+    pattern: '\bzurückgewiesen\b|\bzurückzuweisen\b'
+  - id: dismissed
+    reason: the revision or complaint fails on the merits ("abgewiesen")
+    pattern: '\babgewiesen\b|\babzuweisen\b'
+  - id: declined
+    reason: VfGH declines to deal with the complaint (Art. 144 Abs. 2 B-VG)
+    pattern: 'behandlung .{0,60}abgelehnt|\babgelehnt\b'
+  - id: transferred
+    reason: the complaint is transferred ("abgetreten"; the VfGH's to the VwGH)
+    pattern: 'verwaltungsgerichtshof .{0,40}abgetreten|abgetreten'
+  - id: discontinued
+    reason: the proceedings end without a decision on the merits (withdrawal, the matter became moot)
+    pattern: '\beingestellt\b|gegenstandslos'
+  - id: suspensive
+    reason: a decision on suspensive effect (§ 30 VwGG, § 85 VfGG) - interim
+    pattern: 'aufschiebende[nr]? wirkung|§ ?30 abs\.? ?\d vwgg|§ ?85 abs\.? ?\d vfgg'
+  - id: stayed
+    reason: the proceedings are stayed (e.g. until a preliminary ruling of the CJEU) - interim
+    pattern: 'bis zur (?:vorabentscheidung|entscheidung des gerichtshofe?s der europäischen union).{0,500}ausgesetzt|\bausgesetzt\b|\bunterbrochen\b'
+  - id: referral
+    reason: questions referred to the CJEU for a preliminary ruling (Art. 267 AEUV) - interim; the referred questions after it are not dispositions
+    pattern: 'zur vorabentscheidung vorgelegt(?!e)'
+  - id: application
+    reason: '"Dem Antrag wird (nicht) stattgegeben" without naming the application: suspensive effect when the subject names it (code), else procedural'
+    pattern: '(?:dem|den) (?:antrag|anträgen) ?(?:wird |werden )?(?:nicht )?stattgegeben|(?:dem|den) antrag ?nicht stattgegeben'
+  - id: restitution
+    reason: an application for restitution (Wiedereinsetzung in den vorigen Stand) - procedural
+    pattern: 'wiedereinsetzung'
+  - id: legal_aid
+    reason: a decision on legal aid (Verfahrenshilfe)
+    pattern: 'verfahrenshilfe'
+  - id: deadline
+    reason: a deadline application against the BVwG (Fristsetzungsantrag, § 38 VwGG); "gesetzt" as a word of its own ("festgesetzt" is the departure deadline of a return decision in a VfGH annulment)
+    pattern: 'fristsetzungsantrag|frist .{0,40}\bgesetzt|aufgetragen,? .{0,300}(?:zu erlassen|nachzuholen|zu entscheiden)'
+  - id: norm_review
+    reason: VfGH review of a law or regulation (publication order, unconstitutional or unlawful norm)
+    pattern: 'kundmachung|bundesgesetzblatt|verfassungswidrig|gesetzwidrig'
+
+# An application named only as "Der Antrag" ("Der Antrag wird abgewiesen.") is the application the subject names: the
+# suspensive effect when the subject names it (an application under § 30 VwGG), then the sentence
+# is a decision on suspensive effect only.
+bare_application: '^(?:[ivx]+\.\s*)?(?:der|die|dem|den) (?:antrag|anträge|anträgen) (?:wird|werden)\b'
+subject_suspensive: 'aufschiebende[nr]? wirkung|§ ?30 abs\.? ?\d vwgg'
+
+# Grounds of an annulment (§ 42 Abs. 2 VwGG), recorded with the outcome ("Rechtwidrigkeit": a misprint the VwGH's
+# texts have)
+grounds:
+  content: 'rechts?widrigkeit (?:seines|ihres|des) inhalte?s'
+  procedure: 'verletzung von verfahrensvorschriften'
+  jurisdiction: 'unzuständigkeit'
+
+# Partial: the annulment covers only part of the decision - also a named point of it, or "im Umfang seiner Anfechtung"
+# / "im angefochtenen Umfang" (the revision challenged only a part)
+partial: '\binsoweit\b|\bsoweit\b|im übrigen|\bteilweise\b|\bspruchpunkt(?:e|es|en|s)?\b|im umfang (?:seiner|ihrer|der) anfechtung|im angefochtenen umfang|\banfechtungsumfang'
+
+# Who brought the revision (VwGH, read in the subject): the authority (Amtsrevision of the BFA or a minister) or a party
+# ("über die Revision des …", "in der Revisionssache des …", "über den Antrag des …" - suspensive effect, legal aid;
+# "des Vorlageantrags des …")
+revision_party:
+  authority: '(?:revision(?:en)?|revisionssache|antrag|anträge) (?:des|der) (?:bundesamte?s für fremdenwesen und asyl|bundesministers?|bundesministerin)|amtsrevision'
+  party: '(?:revision(?:en)?|revisionssachen?|antrags?|anträge) (?:\d+\. ?)?(?:des|der|von) (?!bundesamte?s für fremdenwesen|bundesminister)'
+  # a weak hint, used only when no authority is named (in an Amtsrevision the respondent is also "vertreten durch")
+  party_hint: 'vertreten durch|verfahrenshilfe'
+  # where the subject names no one (anonymised: "Revisionssache *****"): costs awarded to the revision's
+  # parties - the Bund does not pay costs to its own authority - in the operative part
+  costs_to_party: '(?:dem|der|den) revisionswerbe(?:r|rin|nden parteien)\b'
+
+# Per sentence: a sentence of one of these types keeps only the first of them in this order - a CJEU reference, an
+# ancillary application (legal aid, suspensive effect), a stay, a restitution, a deadline application or a norm
+# (norm_review): its "abgewiesen" or "aufgehoben" refers to the application or the norm, not to the remedy against
+# the BVwG decision.
+sentence_only: [referral, legal_aid, suspensive, stayed, restitution, deadline, norm_review]
+
+# ... except a sentence that annuls the BVwG decision on the grounds of § 42 Abs. 2 VwGG or finds a violated right (also
+# "wegen Anwendung einer verfassungswidrigen Gesetzesbestimmung in seinen Rechten verletzt"): its scope may name any of
+# these ("soweit damit die Beschwerde gegen ... die Aberkennung der aufschiebenden Wirkung abgewiesen wurde, wegen
+# Verletzung von Verfahrensvorschriften aufgehoben"), so it is an annulment. Nor is an annulling sentence
+# `ancillary` when its scope names costs ("... und soweit damit die Kostenersatzanträge ... abgewiesen werden,
+# aufgehoben").
+annulment_overrides: 'wegen (?:rechts?widrigkeit|verletzung von verfahrensvorschriften|unzuständigkeit)|verfassungsgesetzlich gewährleisteten recht.{0,300}verletzt|in (?:seinen|ihren) rechten verletzt'
+
+# In a sentence that annuls (or finds a violated right), "abgewiesen" / "zurückgewiesen" describe the scope of the
+# annulment ("soweit damit die Beschwerde ... abgewiesen wurde"), not another disposition.
+scope_of_annulment: [dismissed, rejected]
+
+# A negative finding ("weder in einem verfassungsgesetzlich gewährleisteten Recht noch ... verletzt worden") also
+# matches rights_violated; in its sentence the negation wins.
+negations: {no_violation: [rights_violated]}
+
+# Outcome of a decision: the first type in this order found in any sentence. An annulment together with a rejection,
+# a dismissal, a refusal to deal, a finding of no violation, or a partial marker is "partially annulled" (flag
+# `partial`).
+outcome_order:
+  - [annulled, [annulled, rights_violated]]
+  - [dismissed, [dismissed, no_violation]]
+  - [declined, [declined]]
+  - [rejected, [rejected]]
+  - [discontinued, [discontinued]]
+  - [norm_review, [norm_review]]
+  - [interim, [suspensive, stayed, referral]]
+  - [legal_aid, [legal_aid]]
+  - [deadline_application, [deadline]]
+  - [procedural, [restitution]]
+# then: an "application" sentence alone is interim when the subject names the suspensive effect, else procedural

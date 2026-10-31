@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "higher_court_outcome.schema.json",
+  "title": "Outcome of a VwGH or VfGH decision (normalized_outcome annotation)",
+  "description": "The outcome of one VwGH or VfGH decision of the pool (most decide on a remedy against a BVwG decision), by rules (config/outcomes/higher_courts.yaml). Spans are offsets into the decision's full_text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["annotation_id", "document_id", "type", "method", "value", "evidence"],
+  "properties": {
+    "annotation_id": {"type": "string", "pattern": "#out:[0-9]{2,}$"},
+    "document_id": {"type": "string", "pattern": "^ris:(vwgh|vfgh):[A-Z0-9_]+$"},
+    "type": {"const": "normalized_outcome"},
+    "method": {"const": "rule_based"},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["start", "end", "role"],
+        "properties": {"start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 0},
+                       "role": {"const": "disposition"}}
+      }
+    },
+    "value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["court", "register", "outcome", "partial", "transferred", "grounds", "revision_party", "dispositions",
+                   "problems"],
+      "properties": {
+        "court": {"enum": ["VwGH", "VfGH"]},
+        "register": {"type": ["string", "null"], "pattern": "^[A-Z]+$",
+                     "description": "The court's register as the RIS document number gives it (VwGH: the letter before the last two digits, F = Fr, deadline applications; VfGH: E, G, V, U, ...); it fixes the outcome for VwGH F (deadline_application) and VfGH G and V (norm_review)."},
+        "outcome": {
+          "description": "annulled: the BVwG decision is set aside (VfGH: with a violated right); dismissed: the remedy fails on the merits (VfGH: no violation); declined: the VfGH declines to deal with the complaint; rejected: the remedy is inadmissible; discontinued; norm_review: a VfGH decision on a law or regulation (registers G and V, whatever the result); interim: suspensive effect only, a stay, or questions referred to the CJEU; legal_aid: legal aid only; deadline_application: a VwGH decision on a deadline application against the BVwG (register Fr, whatever the result); procedural: restitution or another procedural application; unrecognized.",
+          "enum": ["annulled", "dismissed", "declined", "rejected", "discontinued", "norm_review", "interim", "legal_aid",
+                   "deadline_application", "procedural", "unrecognized"]
+        },
+        "partial": {"type": "boolean", "description": "An annulment of part of the decision only."},
+        "transferred": {"type": "boolean", "description": "The operative part transfers a complaint ('abgetreten'; the VfGH's to the VwGH)."},
+        "grounds": {"type": "array", "items": {"enum": ["content", "procedure", "jurisdiction"]}},
+        "revision_party": {"enum": ["authority", "party", "both", "unknown"],
+                           "description": "VwGH: who brought the revision (the BFA or a minister, or a party); VfGH: party."},
+        "dispositions": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["start", "end", "text", "types"],
+            "properties": {
+              "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 0},
+              "text": {"type": "string", "minLength": 1},
+              "types": {"type": "array", "minItems": 1, "items": {"enum": [
+                "annulled", "rights_violated", "no_violation", "rejected", "dismissed", "declined", "transferred",
+                "discontinued", "suspensive", "stayed", "referral", "application", "restitution", "legal_aid", "deadline",
+                "norm_review"]}}
+            }
+          }
+        },
+        "problems": {"type": "array", "items": {"enum": ["no_operative_part", "no_disposition", "unrecognized"]}}
+      }
+    }
+  }
+}
